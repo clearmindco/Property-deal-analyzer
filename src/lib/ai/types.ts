@@ -23,10 +23,26 @@ export interface StructuredVoiceField {
   confirmed: boolean;
 }
 
+export interface SellerMessageAnalysis {
+  /** New answers this message suggests -- unconfirmed until the user approves them. */
+  extractedAnswers: StructuredVoiceField[];
+  whatWeKnow: string[];
+  whatWeStillNeed: string[];
+  nextBestQuestion: string;
+  suggestedResponse: string;
+}
+
 export interface AiProvider {
   name: "heuristic" | "claude";
   generateDealSummary(input: DealSummaryContext): Promise<AiDealSummaryOutput>;
   structureVoiceNote(transcript: string): Promise<StructuredVoiceField[]>;
+  /** Seller response assistant (lead-gen module): reads one seller message against what's
+   * already confirmed, and returns what's known/missing plus ONE next question -- never a
+   * list of ten questions at once. */
+  analyzeSellerMessage(
+    message: string,
+    existingAnswers: { key: string; label: string; value: string; confirmed: boolean }[]
+  ): Promise<SellerMessageAnalysis>;
 }
 
 // Minimal context the summary generator needs -- deliberately plain data, not Prisma types,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { VoiceInput } from "@/components/ui/VoiceInput";
@@ -10,9 +11,15 @@ const STATUSES = [
   "FOLLOW_UP", "UNDER_CONTRACT", "CLOSED", "DEAD",
 ] as const;
 
+const PRIORITY_STYLES: Record<string, string> = {
+  STRONG: "bg-success/15 text-success",
+  MODERATE: "bg-warning/15 text-warning",
+  UNCLEAR: "bg-slate/15 text-slate",
+};
+
 interface Lead {
   id: string; sellerName: string; address: string | null; phone: string | null;
-  email: string | null; status: string; notes: string | null;
+  email: string | null; status: string; notes: string | null; priorityLevel: string | null;
 }
 
 export function LeadsBoard({ initialLeads }: { initialLeads: Lead[] }) {
@@ -50,7 +57,10 @@ export function LeadsBoard({ initialLeads }: { initialLeads: Lead[] }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold text-navy">Seller leads</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-navy">Seller leads</h1>
+        <Link href="/leadgen" className="text-sm text-primary-blue">Facebook lead generation &rarr;</Link>
+      </div>
 
       <Card>
         <CardTitle>Add a lead</CardTitle>
@@ -72,10 +82,15 @@ export function LeadsBoard({ initialLeads }: { initialLeads: Lead[] }) {
           {leads.length === 0 && <p className="py-3 text-sm text-text-secondary">No leads yet.</p>}
           {leads.map((lead) => (
             <div key={lead.id} className="flex items-center justify-between gap-3 py-3 text-sm">
-              <div>
-                <p className="font-medium text-text-primary">{lead.sellerName}</p>
+              <Link href={`/leads/${lead.id}`} className="flex-1">
+                <p className="font-medium text-text-primary hover:text-primary-blue">{lead.sellerName}</p>
                 <p className="text-text-secondary">{lead.address || "No address"} {lead.phone ? `· ${lead.phone}` : ""}</p>
-              </div>
+              </Link>
+              {lead.priorityLevel && (
+                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${PRIORITY_STYLES[lead.priorityLevel] ?? ""}`}>
+                  {lead.priorityLevel}
+                </span>
+              )}
               <select
                 value={lead.status}
                 onChange={(e) => updateStatus(lead.id, e.target.value)}

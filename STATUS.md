@@ -53,6 +53,40 @@ changes a calculation (section 2), deal-killers panel with STOP flags (section 8
 number breakdowns in the Financing tab (section 44), demo BRRRR deal seeded and clearly
 labeled DEMO/EDUCATIONAL DATA (section 38).
 
+## Facebook / community inbound seller lead generation module (new)
+
+Full vertical slice of the spec's Facebook inbound lead-gen system, built human-approval-first
+-- this app never posts, messages, or scrapes anything on a platform automatically:
+
+- **Markets -> Groups** (`/leadgen/markets`) -- each market (e.g. "Rochester, NY") holds its own
+  saved-group database with the spec's fields (type, priority HIGH_PRIORITY/TEST/LOW_PRIORITY/
+  STOP_USING, posting rules, promotion/RE-allowed flags, dates).
+- **Quick Post workflow** (`/leadgen/groups/[id]`) -- deterministic template generator
+  (`src/lib/leadgen/postGenerator.ts`) with post-type variants (Tired Landlord, Fixer-Upper,
+  Referral, etc.), natural phrasing for general groups vs. investor phrasing only for
+  investor-type groups, and rotation (never repeats a variant already used in that group).
+  Copy Post / Open Group / Mark as Posted / Generate Another / Skip Today, then "Did anyone
+  respond?" (None/Comment/DM/Seller Lead) -- choosing Seller Lead creates a CRM lead and drops
+  the user straight into qualifying it.
+- **Group performance** (`src/lib/leadgen/groupPerformance.ts`, unit-tested) -- conversion
+  rates (response/lead/qualified/offer/contract rate) and a plain recommendation (KEEP
+  POSTING / KEEP TESTING / REVIEW APPROACH / STOP USING / NOT ENOUGH DATA) from actual results,
+  never from group size.
+- **Seller qualification + response assistant** (`/leads/[id]`) -- progress bar ("X of 16
+  answered"), one next-best-question at a time, paste-or-voice seller-message analysis
+  (`AiProvider.analyzeSellerMessage`) that extracts candidate answers for confirmation and
+  drafts one reply -- never a list of ten questions.
+- **Transparent lead priority** (`src/lib/leadgen/leadPriority.ts`, unit-tested) -- STRONG/
+  MODERATE/UNCLEAR with the exact observable reasons shown (vacant, short timeline, mortgage
+  info provided, etc.) -- no hidden AI score, matching the spec's worked example.
+- **Deal handoff** (`POST /api/leads/[id]/handoff`) -- transfers what the seller said into a
+  new Deal as NEEDS_VERIFICATION facts, never as verified data.
+- **Follow-up engine** -- last-contact/next-follow-up dates, a drafted follow-up message the
+  user must copy and send themselves (nothing here sends anything).
+- **AI Mentor integration** -- now also flags days since any group was posted in, a
+  lead-generation-vs-calling-back bottleneck, per-group "stop using" calls, and the single
+  most overdue follow-up.
+
 ## Not yet built (next in sequence)
 
 - **18. Creative-finance analyzer** -- seller-financing / subject-to modeling, risk warnings,

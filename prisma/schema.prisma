@@ -21,10 +21,13 @@ model User {
   name         String?
   createdAt    DateTime @default(now())
 
-  deals   Deal[]
-  lenders Lender[]
-  leads   Lead[]
+  deals    Deal[]
+  lenders  Lender[]
+  leads    Lead[]
   contacts Contact[]
+  markets  Market[]
+  groups   Group[]
+  posts    Post[]
 }
 
 // SQLite has no native enum support in Prisma, so DealStage/LeadStatus are plain strings
@@ -36,35 +39,35 @@ model Deal {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   isDemo Boolean @default(false)
-  stage  String @default("ANALYZING")
+  stage  String  @default("ANALYZING")
 
   // Identity / entry (spec section 4)
-  address       String
-  city          String?
-  state         String?
-  zip           String?
-  askingPrice   Float?
-  propertyType  String?
-  units         Int      @default(1)
-  bedrooms      Int?
-  bathrooms     Float?
-  sqft          Int?
+  address      String
+  city         String?
+  state        String?
+  zip          String?
+  askingPrice  Float?
+  propertyType String?
+  units        Int     @default(1)
+  bedrooms     Int?
+  bathrooms    Float?
+  sqft         Int?
 
   // Each of these holds a typed JSON blob (see src/lib/types/deal.ts), serialized to a
   // String because Prisma's SQLite connector has no native Json type. src/lib/jsonFields.ts
   // handles the serialize/deserialize boundary everywhere these are read or written --
   // switching the datasource to Postgres later can drop that layer and use Json directly.
-  property      String? // condition, ages of systems, occupancy, taxes, etc.
-  seller        String? // seller motivation / CRM-lite fields for this deal
-  valueArv      String? // as-is value, ARV bands, comps, confidence
-  rehab         String? // line items with low/expected/high + contingency
-  rent          String? // market rent + Section 8 analysis
-  financing     String? // hard money assumptions + refinance assumptions
+  property        String? // condition, ages of systems, occupancy, taxes, etc.
+  seller          String? // seller motivation / CRM-lite fields for this deal
+  valueArv        String? // as-is value, ARV bands, comps, confidence
+  rehab           String? // line items with low/expected/high + contingency
+  rent            String? // market rent + Section 8 analysis
+  financing       String? // hard money assumptions + refinance assumptions
   creativeFinance String? // seller-finance / subject-to analysis
-  assumptions   String? // investor requirements used by acquisition price engine
-  dealKillers   String? // array of flags {key, status, note}
+  assumptions     String? // investor requirements used by acquisition price engine
+  dealKillers     String? // array of flags {key, status, note}
 
-  notes    Note[]
+  notes     Note[]
   documents Document[]
 
   createdAt DateTime @default(now())
@@ -96,17 +99,17 @@ model Lender {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  name        String
-  contact     String?
-  email       String?
-  phone       String?
-  website     String?
-  geography   String?
-  loanType    String? // hard_money | dscr | conventional | other
-  terms       String // JSON-serialized HardMoneyTerms (rate, points, ltcCap, arvLtvCap, fees, etc.)
-  verified    Boolean  @default(false)
-  quoteDate   DateTime?
-  notes       String?
+  name      String
+  contact   String?
+  email     String?
+  phone     String?
+  website   String?
+  geography String?
+  loanType  String? // hard_money | dscr | conventional | other
+  terms     String // JSON-serialized HardMoneyTerms (rate, points, ltcCap, arvLtvCap, fees, etc.)
+  verified  Boolean   @default(false)
+  quoteDate DateTime?
+  notes     String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -123,10 +126,98 @@ model Lead {
   address    String?
   phone      String?
   email      String?
-  status     String @default("NEW")
+  status     String  @default("NEW")
   motivation String? // JSON-serialized observable motivation signals (spec section 28)
   details    String? // JSON-serialized reason for selling, timeline, debts, cash need, etc.
   notes      String?
+
+  // Facebook/community inbound lead-gen linkage (loose references, not Prisma relations,
+  // so a deleted market/group/post never blocks deleting a lead that came from it).
+  marketId     String?
+  groupId      String?
+  sourcePostId String?
+  dealId       String? // set once "Create Deal Analysis" hands this lead off to underwriting
+
+  // Seller qualification (spec: gradually collect ~12 facts). JSON array of
+  // QualificationAnswer (see src/lib/types/leadgen.ts).
+  qualification String?
+
+  // Transparent priority signal -- STRONG | MODERATE | UNCLEAR -- plus the observable
+  // reasons that produced it (never an unexplained AI score).
+  priorityLevel   String?
+  priorityReasons String? // JSON string[]
+
+  lastContactAt  DateTime?
+  nextFollowUpAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Market {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name  String
+  notes String?
+
+  groups Group[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Valid Group.priority values: HIGH_PRIORITY | TEST | LOW_PRIORITY | STOP_USING.
+// Valid Group.groupType values: community | neighborhood | buy_sell_trade | landlord |
+// property_owner | real_estate | investor | vacation_rental | local_business | other.
+model Group {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  marketId String
+  market   Market @relation(fields: [marketId], references: [id], onDelete: Cascade)
+
+  name               String
+  url                String?
+  groupType          String    @default("community")
+  memberCount        Int?
+  activityLevel      String? // HIGH | MEDIUM | LOW
+  sellerPotential    String? // HIGH | MEDIUM | LOW
+  investorSaturation String? // HIGH | MEDIUM | LOW
+  postingRules       String?
+  promotionAllowed   Boolean?
+  realEstateAllowed  Boolean?
+  dateJoined         DateTime?
+  lastPostDate       DateTime?
+  lastEngagementDate DateTime?
+  priority           String    @default("TEST")
+  notes              String?
+
+  posts Post[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Valid Post.status values: DRAFT | POSTED | SKIPPED.
+// Valid Post.responseOutcome values: NONE | COMMENT | DIRECT_MESSAGE | SELLER_LEAD.
+// Valid Post.postType values: seasoning_community | looking_for_property | fixer_upper |
+// small_multifamily | rental_property | tired_landlord | vacation_rental | general_seller |
+// referral.
+model Post {
+  id      String @id @default(cuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groupId String
+  group   Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  postType        String
+  copy            String
+  status          String    @default("DRAFT")
+  postedAt        DateTime?
+  responseOutcome String?
+  leadId          String? // loose reference to the Lead this response became, if any
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -142,7 +233,7 @@ model Contact {
   trade    String // general_contractor | plumbing | electrical | ...
   phone    String?
   email    String?
-  category String @default("BACKUP") // PREFERRED | BACKUP | DO_NOT_USE
+  category String  @default("BACKUP") // PREFERRED | BACKUP | DO_NOT_USE
   notes    String?
 
   createdAt DateTime @default(now())
