@@ -4,6 +4,8 @@ import { useState } from "react";
 import type { Rehab, RehabCategory, RehabLineItem } from "@/lib/types/deal";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { InfoTooltip } from "@/components/ui/Tooltip";
+import { useMode } from "@/lib/mode-context";
 
 const CATEGORIES: RehabCategory[] = [
   "roof", "gutters", "foundation", "basement_water", "sewer", "electrical_panel", "rewiring",
@@ -27,6 +29,7 @@ export function RehabTab({
   onSave: () => void;
   saving: boolean;
 }) {
+  const { mode } = useMode();
   const [draft, setDraft] = useState<Partial<RehabLineItem>>({ category: "kitchen" });
 
   function addItem() {
@@ -52,8 +55,15 @@ export function RehabTab({
 
   return (
     <div className="flex flex-col gap-6">
+      {mode === "simple" && (
+        <p className="rounded-card bg-soft-blue px-4 py-3 text-sm text-navy">
+          Add each repair you expect, with a low/expected/high cost range. Anything hidden
+          behind walls or underground (foundation, sewer, wiring, plumbing) should be marked
+          &quot;needs inspection&quot; rather than guessed at.
+        </p>
+      )}
       <Card>
-        <CardTitle>Rehab line items</CardTitle>
+        <CardTitle>{mode === "simple" ? "What repairs might it need?" : "Rehab line items"}</CardTitle>
         <div className="mt-3 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -100,7 +110,10 @@ export function RehabTab({
       </Card>
 
       <Card>
-        <CardTitle>Contingency</CardTitle>
+        <CardTitle>
+          {mode === "simple" ? "Extra cushion for surprises" : "Contingency"}
+          <InfoTooltip text="A buffer on top of your expected repair costs, since rehabs almost always turn up something unexpected. 10-20% is typical." />
+        </CardTitle>
         <div className="mt-3 flex items-center gap-4">
           <input
             type="range" min={0.1} max={0.2} step={0.01}

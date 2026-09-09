@@ -6,12 +6,27 @@ import { calculateHardMoneyLoan, calculateRefinance, compareLenders, type Lender
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { InfoTooltip } from "@/components/ui/Tooltip";
+import { useMode } from "@/lib/mode-context";
+import { term, tooltipFor, TERMS } from "@/lib/terminology";
 
-function numInput(label: string, value: number, onChange: (v: number) => void, opts?: { step?: number; pct?: boolean }) {
+type TermKey = keyof typeof TERMS;
+
+function NumField({
+  termKey, label, value, onChange, mode, opts,
+}: {
+  termKey?: TermKey;
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  mode: "simple" | "pro";
+  opts?: { step?: number; pct?: boolean };
+}) {
   const display = opts?.pct ? Math.round(value * 1000) / 10 : value;
+  const shownLabel = termKey ? term(termKey, mode) : label;
   return (
     <label className="text-sm font-medium text-text-secondary">
-      {label}
+      {shownLabel}
+      {termKey && <InfoTooltip text={tooltipFor(termKey)} />}
       <input
         type="number"
         step={opts?.step ?? (opts?.pct ? 0.1 : 1)}
@@ -20,6 +35,19 @@ function numInput(label: string, value: number, onChange: (v: number) => void, o
         className="mt-1 w-full rounded-card border border-silver/60 bg-canvas px-3 py-2 text-sm"
       />
     </label>
+  );
+}
+
+function Stat({ termKey, label, value, suffix, mode }: { termKey?: TermKey; label?: string; value: string; suffix?: string; mode: "simple" | "pro" }) {
+  return (
+    <div>
+      <span className="text-text-secondary">
+        {termKey ? term(termKey, mode) : label}
+        {termKey && <InfoTooltip text={tooltipFor(termKey)} />}
+      </span>
+      <br />
+      <strong>{value}</strong>{suffix ?? ""}
+    </div>
   );
 }
 
@@ -42,6 +70,7 @@ export function FinancingTab({
   arv: number;
   rentMonthly: number;
 }) {
+  const { mode } = useMode();
   const hm = financing.hardMoney;
   const refi = financing.refinance;
   const exp = financing.expenses;
@@ -72,33 +101,41 @@ export function FinancingTab({
 
   return (
     <div className="flex flex-col gap-6">
+      {mode === "simple" && (
+        <p className="rounded-card bg-soft-blue px-4 py-3 text-sm text-navy">
+          There are two loans in a BRRRR deal: a <strong>short-term loan</strong> to buy and fix
+          the property, then a <strong>long-term loan</strong> that pays off the short-term one
+          and becomes your regular mortgage. Every number below has a &quot;?&quot; you can tap to explain it.
+        </p>
+      )}
+
       <Card>
         <CardTitle>
-          Hard-money / rehab loan terms
+          {mode === "simple" ? "Short-term loan to buy and fix it up" : "Hard-money / rehab loan terms"}
           <InfoTooltip text="Temporary financing used to buy and renovate the property before refinancing into a permanent loan." />
         </CardTitle>
         <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {numInput("Rate", hm.ratePct, (v) => onChange({ ...financing, hardMoney: { ...hm, ratePct: v } }), { pct: true })}
-          {numInput("Points", hm.points, (v) => onChange({ ...financing, hardMoney: { ...hm, points: v } }))}
-          {numInput("Purchase financed %", hm.purchaseFinancedPct, (v) => onChange({ ...financing, hardMoney: { ...hm, purchaseFinancedPct: v } }), { pct: true })}
-          {numInput("Rehab financed %", hm.rehabFinancedPct, (v) => onChange({ ...financing, hardMoney: { ...hm, rehabFinancedPct: v } }), { pct: true })}
-          {numInput("LTC cap %", hm.ltcCapPct ?? 0.9, (v) => onChange({ ...financing, hardMoney: { ...hm, ltcCapPct: v } }), { pct: true })}
-          {numInput("ARV/LTV cap %", hm.arvLtvCapPct ?? 0.7, (v) => onChange({ ...financing, hardMoney: { ...hm, arvLtvCapPct: v } }), { pct: true })}
-          {numInput("Draw fee ($)", hm.drawFee ?? 0, (v) => onChange({ ...financing, hardMoney: { ...hm, drawFee: v } }))}
-          {numInput("Appraisal fee ($)", hm.appraisalFee ?? 0, (v) => onChange({ ...financing, hardMoney: { ...hm, appraisalFee: v } }))}
-          {numInput("Underwriting fee ($)", hm.underwritingFee ?? 0, (v) => onChange({ ...financing, hardMoney: { ...hm, underwritingFee: v } }))}
-          {numInput("Hold period (months)", financing.holdPeriodMonths, (v) => onChange({ ...financing, holdPeriodMonths: v }))}
+          <NumField mode={mode} termKey="hmRate" label="Rate" value={hm.ratePct} opts={{ pct: true }} onChange={(v) => onChange({ ...financing, hardMoney: { ...hm, ratePct: v } })} />
+          <NumField mode={mode} termKey="points" label="Points" value={hm.points} onChange={(v) => onChange({ ...financing, hardMoney: { ...hm, points: v } })} />
+          <NumField mode={mode} termKey="purchaseFinancedPct" label="Purchase financed %" value={hm.purchaseFinancedPct} opts={{ pct: true }} onChange={(v) => onChange({ ...financing, hardMoney: { ...hm, purchaseFinancedPct: v } })} />
+          <NumField mode={mode} termKey="rehabFinancedPct" label="Rehab financed %" value={hm.rehabFinancedPct} opts={{ pct: true }} onChange={(v) => onChange({ ...financing, hardMoney: { ...hm, rehabFinancedPct: v } })} />
+          <NumField mode={mode} termKey="ltc" label="LTC cap %" value={hm.ltcCapPct ?? 0.9} opts={{ pct: true }} onChange={(v) => onChange({ ...financing, hardMoney: { ...hm, ltcCapPct: v } })} />
+          <NumField mode={mode} termKey="arvLtv" label="ARV/LTV cap %" value={hm.arvLtvCapPct ?? 0.7} opts={{ pct: true }} onChange={(v) => onChange({ ...financing, hardMoney: { ...hm, arvLtvCapPct: v } })} />
+          <NumField mode={mode} termKey="drawFee" label="Draw fee ($)" value={hm.drawFee ?? 0} onChange={(v) => onChange({ ...financing, hardMoney: { ...hm, drawFee: v } })} />
+          <NumField mode={mode} termKey="appraisalFee" label="Appraisal fee ($)" value={hm.appraisalFee ?? 0} onChange={(v) => onChange({ ...financing, hardMoney: { ...hm, appraisalFee: v } })} />
+          <NumField mode={mode} termKey="underwritingFee" label="Underwriting fee ($)" value={hm.underwritingFee ?? 0} onChange={(v) => onChange({ ...financing, hardMoney: { ...hm, underwritingFee: v } })} />
+          <NumField mode={mode} termKey="holdPeriod" label="Hold period (months)" value={financing.holdPeriodMonths} onChange={(v) => onChange({ ...financing, holdPeriodMonths: v })} />
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-2 rounded-card bg-soft-blue p-4 text-sm sm:grid-cols-4">
-          <div>Purchase loan<br /><strong>${Math.round(hmResult.purchaseLoan).toLocaleString()}</strong></div>
-          <div>Rehab loan<br /><strong>${Math.round(hmResult.rehabLoan).toLocaleString()}</strong></div>
-          <div>Total loan<br /><strong>${Math.round(hmResult.totalLoan).toLocaleString()}</strong></div>
-          <div>Cash to close<br /><strong>${Math.round(hmResult.cashToClose).toLocaleString()}</strong></div>
-          <div>Rehab cash required<br /><strong>${Math.round(hmResult.rehabCashRequired).toLocaleString()}</strong></div>
-          <div>Est. interest during hold<br /><strong>${Math.round(hmResult.estimatedInterestDuringHold).toLocaleString()}</strong></div>
-          <div>Max temporary cash exposure<br /><strong>${Math.round(hmResult.maxTemporaryCashExposure).toLocaleString()}</strong></div>
-          <div>Total financing cost<br /><strong>${Math.round(hmResult.totalFinancingCost).toLocaleString()}</strong></div>
+        <div className="mt-4 grid grid-cols-2 gap-3 rounded-card bg-soft-blue p-4 text-sm sm:grid-cols-4">
+          <Stat mode={mode} termKey="purchaseLoan" value={`$${Math.round(hmResult.purchaseLoan).toLocaleString()}`} />
+          <Stat mode={mode} termKey="rehabLoan" value={`$${Math.round(hmResult.rehabLoan).toLocaleString()}`} />
+          <Stat mode={mode} termKey="totalLoan" value={`$${Math.round(hmResult.totalLoan).toLocaleString()}`} />
+          <Stat mode={mode} termKey="cashToClose" value={`$${Math.round(hmResult.cashToClose).toLocaleString()}`} />
+          <Stat mode={mode} termKey="rehabCashRequired" value={`$${Math.round(hmResult.rehabCashRequired).toLocaleString()}`} />
+          <Stat mode={mode} termKey="interestDuringHold" value={`$${Math.round(hmResult.estimatedInterestDuringHold).toLocaleString()}`} />
+          <Stat mode={mode} termKey="maxCashExposure" value={`$${Math.round(hmResult.maxTemporaryCashExposure).toLocaleString()}`} />
+          <Stat mode={mode} termKey="totalFinancingCost" value={`$${Math.round(hmResult.totalFinancingCost).toLocaleString()}`} />
         </div>
         {!hmResult.qualifies && (
           <p className="mt-2 text-sm text-danger">{hmResult.disqualifyReason}</p>
@@ -116,8 +153,8 @@ export function FinancingTab({
               <thead>
                 <tr className="text-left text-text-secondary">
                   <th className="py-1">Lender</th>
-                  <th>Total loan</th>
-                  <th>Total financing cost</th>
+                  <th>{term("totalLoan", mode)}</th>
+                  <th>{term("totalFinancingCost", mode)}</th>
                   <th>Qualifies?</th>
                 </tr>
               </thead>
@@ -143,41 +180,41 @@ export function FinancingTab({
       </Card>
 
       <Card>
-        <CardTitle>Refinance terms</CardTitle>
+        <CardTitle>{mode === "simple" ? "Long-term loan that replaces it" : "Refinance terms"}</CardTitle>
         <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {numInput("Refi LTV %", refi.refiLtvPct, (v) => onChange({ ...financing, refinance: { ...refi, refiLtvPct: v } }), { pct: true })}
-          {numInput("Rate", refi.ratePct, (v) => onChange({ ...financing, refinance: { ...refi, ratePct: v } }), { pct: true })}
-          {numInput("Term (years)", refi.termYears, (v) => onChange({ ...financing, refinance: { ...refi, termYears: v } }))}
-          {numInput("Closing costs %", refi.closingCostsPct, (v) => onChange({ ...financing, refinance: { ...refi, closingCostsPct: v } }), { pct: true })}
-          {numInput("Min DSCR", refi.minDscr ?? 1.2, (v) => onChange({ ...financing, refinance: { ...refi, minDscr: v } }))}
+          <NumField mode={mode} termKey="refiLtv" label="Refi LTV %" value={refi.refiLtvPct} opts={{ pct: true }} onChange={(v) => onChange({ ...financing, refinance: { ...refi, refiLtvPct: v } })} />
+          <NumField mode={mode} termKey="refiRate" label="Rate" value={refi.ratePct} opts={{ pct: true }} onChange={(v) => onChange({ ...financing, refinance: { ...refi, ratePct: v } })} />
+          <NumField mode={mode} termKey="refiTerm" label="Term (years)" value={refi.termYears} onChange={(v) => onChange({ ...financing, refinance: { ...refi, termYears: v } })} />
+          <NumField mode={mode} termKey="refiClosingCosts" label="Closing costs %" value={refi.closingCostsPct} opts={{ pct: true }} onChange={(v) => onChange({ ...financing, refinance: { ...refi, closingCostsPct: v } })} />
+          <NumField mode={mode} termKey="minDscr" label="Min DSCR" value={refi.minDscr ?? 1.2} onChange={(v) => onChange({ ...financing, refinance: { ...refi, minDscr: v } })} />
         </div>
 
         {refiResult && (
-          <div className="mt-4 grid grid-cols-2 gap-2 rounded-card bg-soft-blue p-4 text-sm sm:grid-cols-4">
-            <div>Refi loan amount<br /><strong>${Math.round(refiResult.refiLoanAmount).toLocaleString()}</strong> ({refiResult.cappedBy})</div>
-            <div>Payoff (hard money)<br /><strong>${Math.round(refiResult.hardMoneyPayoff).toLocaleString()}</strong></div>
-            <div>Cash returned<br /><strong>${Math.round(refiResult.cashReturnedToInvestor).toLocaleString()}</strong></div>
-            <div>Cash left in property<br /><strong>${Math.round(refiResult.cashRemainingInProperty).toLocaleString()}</strong></div>
-            <div>Monthly P&amp;I<br /><strong>${Math.round(refiResult.monthlyPI).toLocaleString()}</strong></div>
-            <div>Post-refi cash flow<br /><strong>${Math.round(refiResult.postRefiCashFlowMonthly).toLocaleString()}</strong>/mo</div>
-            <div>Post-refi DSCR<br /><strong>{refiResult.postRefiDscr.toFixed(2)}</strong></div>
-            <div>Equity at refi<br /><strong>${Math.round(refiResult.equityAtRefi).toLocaleString()}</strong></div>
+          <div className="mt-4 grid grid-cols-2 gap-3 rounded-card bg-soft-blue p-4 text-sm sm:grid-cols-4">
+            <Stat mode={mode} termKey="refiLoanAmount" value={`$${Math.round(refiResult.refiLoanAmount).toLocaleString()}`} suffix={mode === "pro" ? ` (${refiResult.cappedBy})` : ""} />
+            <Stat mode={mode} termKey="hardMoneyPayoff" value={`$${Math.round(refiResult.hardMoneyPayoff).toLocaleString()}`} />
+            <Stat mode={mode} termKey="cashReturned" value={`$${Math.round(refiResult.cashReturnedToInvestor).toLocaleString()}`} />
+            <Stat mode={mode} termKey="cashLeftInProperty" value={`$${Math.round(refiResult.cashRemainingInProperty).toLocaleString()}`} />
+            <Stat mode={mode} termKey="monthlyPI" value={`$${Math.round(refiResult.monthlyPI).toLocaleString()}`} />
+            <Stat mode={mode} termKey="cashFlow" value={`$${Math.round(refiResult.postRefiCashFlowMonthly).toLocaleString()}`} suffix="/mo" />
+            <Stat mode={mode} termKey="dscr" value={refiResult.postRefiDscr.toFixed(2)} />
+            <Stat mode={mode} termKey="equityAtRefi" value={`$${Math.round(refiResult.equityAtRefi).toLocaleString()}`} />
           </div>
         )}
         {!refiResult && <p className="mt-3 text-sm text-text-secondary">Add an ARV on the Value/ARV tab to see refinance math.</p>}
       </Card>
 
       <Card>
-        <CardTitle>Operating expense assumptions</CardTitle>
+        <CardTitle>{mode === "simple" ? "Monthly costs of owning it" : "Operating expense assumptions"}</CardTitle>
         <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {numInput("Annual taxes ($)", exp.taxesAnnual, (v) => onChange({ ...financing, expenses: { ...exp, taxesAnnual: v } }))}
-          {numInput("Annual insurance ($)", exp.insuranceAnnual, (v) => onChange({ ...financing, expenses: { ...exp, insuranceAnnual: v } }))}
-          {numInput("Vacancy %", exp.vacancyPct, (v) => onChange({ ...financing, expenses: { ...exp, vacancyPct: v } }), { pct: true })}
-          {numInput("Maintenance %", exp.maintenancePct, (v) => onChange({ ...financing, expenses: { ...exp, maintenancePct: v } }), { pct: true })}
-          {numInput("CapEx %", exp.capexPct, (v) => onChange({ ...financing, expenses: { ...exp, capexPct: v } }), { pct: true })}
-          {numInput("Management %", exp.managementPct, (v) => onChange({ ...financing, expenses: { ...exp, managementPct: v } }), { pct: true })}
+          <NumField mode={mode} label="Annual taxes ($)" value={exp.taxesAnnual} onChange={(v) => onChange({ ...financing, expenses: { ...exp, taxesAnnual: v } })} />
+          <NumField mode={mode} label="Annual insurance ($)" value={exp.insuranceAnnual} onChange={(v) => onChange({ ...financing, expenses: { ...exp, insuranceAnnual: v } })} />
+          <NumField mode={mode} termKey="vacancyPct" label="Vacancy %" value={exp.vacancyPct} opts={{ pct: true }} onChange={(v) => onChange({ ...financing, expenses: { ...exp, vacancyPct: v } })} />
+          <NumField mode={mode} termKey="maintenancePct" label="Maintenance %" value={exp.maintenancePct} opts={{ pct: true }} onChange={(v) => onChange({ ...financing, expenses: { ...exp, maintenancePct: v } })} />
+          <NumField mode={mode} termKey="capexPct" label="CapEx %" value={exp.capexPct} opts={{ pct: true }} onChange={(v) => onChange({ ...financing, expenses: { ...exp, capexPct: v } })} />
+          <NumField mode={mode} termKey="managementPct" label="Management %" value={exp.managementPct} opts={{ pct: true }} onChange={(v) => onChange({ ...financing, expenses: { ...exp, managementPct: v } })} />
         </div>
-        <p className="mt-2 text-xs text-text-secondary">Management stays in the underwriting even if you plan to self-manage (spec section 20).</p>
+        <p className="mt-2 text-xs text-text-secondary">Management stays in the underwriting even if you plan to self-manage -- your time still has a cost.</p>
       </Card>
 
       <div className="flex justify-end">
