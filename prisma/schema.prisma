@@ -138,9 +138,18 @@ model Lead {
   sourcePostId String?
   dealId       String? // set once "Create Deal Analysis" hands this lead off to underwriting
 
-  // Seller qualification (spec: gradually collect ~12 facts). JSON array of
-  // QualificationAnswer (see src/lib/types/leadgen.ts).
+  // Seller qualification, structured around the 10 core questions (spec: "Seller
+  // Conversation Engine / 10 Magic Questions System"). JSON array of QualificationAnswer
+  // (see src/lib/types/leadgen.ts).
   qualification String?
+
+  // Question ids (1-10) the investor chose to skip for now -- excluded from "next best
+  // question" until answered or revisited. JSON number[].
+  skippedQuestions String?
+
+  // The 21-item pre-signing verification checklist (spec: "MAJOR SYSTEM GATE. DO NOT SIGN
+  // YET.") shown once the seller responds OPEN_TO_TERMS/MAYBE. JSON VerificationChecklistItem[].
+  verificationChecklist String?
 
   // Transparent priority signal -- STRONG | MODERATE | UNCLEAR -- plus the observable
   // reasons that produced it (never an unexplained AI score).

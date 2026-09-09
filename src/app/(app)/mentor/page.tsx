@@ -3,6 +3,7 @@ import { requireUserId } from "@/lib/session";
 import { Card, CardTitle } from "@/components/ui/Card";
 import type { DealKillerFlag } from "@/lib/types/deal";
 import { computeGroupPerformance } from "@/lib/leadgen";
+import { CORE_QUESTIONS, type QualificationAnswer } from "@/lib/types/leadgen";
 
 function daysSince(date: Date | null): number | null {
   if (!date) return null;
@@ -81,7 +82,14 @@ export default async function MentorPage() {
     .filter((l) => l.nextFollowUpAt && l.nextFollowUpAt <= now && l.status !== "CLOSED" && l.status !== "DEAD")
     .sort((a, b) => (a.nextFollowUpAt as Date).getTime() - (b.nextFollowUpAt as Date).getTime())[0];
   if (dueLead) {
-    actions.push(`Your next action is to follow up with ${dueLead.sellerName}${dueLead.address ? ` about ${dueLead.address}` : ""}.`);
+    const qualification: QualificationAnswer[] = dueLead.qualification ? JSON.parse(dueLead.qualification) : [];
+    const knownTopics = CORE_QUESTIONS
+      .filter((q) => qualification.some((a) => q.fields.includes(a.key) && a.confirmed && a.value.trim()))
+      .map((q) => q.topic);
+    const resumeContext = knownTopics.length > 0
+      ? ` Do not restart qualification -- you already know the ${knownTopics.join(", ")}.`
+      : "";
+    actions.push(`Your next action is to follow up with ${dueLead.sellerName}${dueLead.address ? ` about ${dueLead.address}` : ""}.${resumeContext}`);
   }
 
   if (deals.length === 0) {

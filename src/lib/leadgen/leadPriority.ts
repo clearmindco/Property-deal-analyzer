@@ -1,10 +1,5 @@
 import type { LeadPriorityResult, QualificationAnswer } from "@/lib/types/leadgen";
-
-function answerFor(qualification: QualificationAnswer[], key: string): string | undefined {
-  const a = qualification.find((q) => q.key === key);
-  const v = a?.value?.trim();
-  return v && v.length > 0 ? v : undefined;
-}
+import { answerFor } from "./qualification";
 
 const URGENCY_WORDS = /asap|30 day|this month|this week|immediately|urgent|soon|quickly/i;
 const FINANCIAL_PRESSURE_WORDS = /behind|debt|can'?t afford|struggl|foreclos|owe|arrears|late/i;
@@ -24,6 +19,7 @@ export function computeLeadPriority(qualification: QualificationAnswer[]): LeadP
   const sellerReason = answerFor(qualification, "sellerReason");
   const liensDebts = answerFor(qualification, "liensDebts");
   const openToTerms = answerFor(qualification, "openToTerms");
+  const termsResponse = answerFor(qualification, "termsResponse");
   const mortgageBalance = answerFor(qualification, "mortgageBalance");
   const monthlyPayment = answerFor(qualification, "monthlyPayment");
 
@@ -57,11 +53,11 @@ export function computeLeadPriority(qualification: QualificationAnswer[]): LeadP
     reasons.push("Provided mortgage information");
   }
 
-  if (openToTerms && OPEN_WORDS.test(openToTerms)) {
+  if (termsResponse === "OPEN_TO_TERMS" || (openToTerms && OPEN_WORDS.test(openToTerms))) {
     reasons.push("Open to discussing terms");
   }
 
-  const answeredCount = qualification.filter((q) => q.value.trim().length > 0).length;
+  const answeredCount = qualification.filter((q) => q.confirmed && q.value.trim().length > 0).length;
   if (answeredCount >= 6) {
     reasons.push("Has been responsive and forthcoming with details");
   }

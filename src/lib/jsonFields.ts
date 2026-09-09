@@ -9,7 +9,9 @@ export const DEAL_JSON_FIELDS = [
 
 export const LENDER_JSON_FIELDS = ["terms"] as const;
 
-export const LEAD_JSON_FIELDS = ["motivation", "details", "qualification", "priorityReasons"] as const;
+export const LEAD_JSON_FIELDS = [
+  "motivation", "details", "qualification", "priorityReasons", "skippedQuestions", "verificationChecklist",
+] as const;
 
 // Returns Record<string, unknown> rather than T: the whole point is that the JSON fields
 // change shape (object -> string), so preserving the input type here would be a lie. Callers

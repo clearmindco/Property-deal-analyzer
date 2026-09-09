@@ -1,7 +1,8 @@
 import type {
   AiDealSummaryOutput, AiProvider, DealSummaryContext, SellerMessageAnalysis, StructuredVoiceField,
 } from "./types";
-import { QUALIFICATION_FIELDS, type QualificationKey } from "@/lib/types/leadgen";
+import { QUALIFICATION_FIELDS, type QualificationAnswer, type QualificationKey } from "@/lib/types/leadgen";
+import { nextCoreQuestion } from "@/lib/leadgen/coreQuestions";
 
 const SELLER_MESSAGE_PATTERNS: Array<{ key: QualificationKey; regex: RegExp; parse?: (m: RegExpMatchArray) => string }> = [
   { key: "propertyType", regex: /\b(single[- ]family|duplex|triplex|fourplex|multi[- ]?family|condo|townhouse)\b/i, parse: (m) => m[1]! },
@@ -20,26 +21,13 @@ const SELLER_MESSAGE_PATTERNS: Array<{ key: QualificationKey; regex: RegExp; par
   { key: "cashNeeded", regex: /need(?:s)?[^.]*?\$?([\d,]{3,})[^.]*?(?:cash|closing|out of it)/i, parse: (m) => `$${m[1]!.replace(/,/g, "")}` },
   { key: "repairs", regex: /\b(new roof|roof leak|needs? (?:a )?roof|foundation issue|needs plumbing|needs electrical|needs a furnace|water damage)\b/i, parse: (m) => m[1]! },
   { key: "legalCoIssues", regex: /\b(no certificate of occupancy|no co\b|illegal (?:unit|apartment)|code violation|permit issue)\b/i, parse: (m) => m[1]! },
+  { key: "taxStatus", regex: /taxes?\s+(?:are|is)?\s*(current|up to date|delinquent|behind)\b/i, parse: (m) => (/current|up to date/i.test(m[1]!) ? "Current" : "Delinquent") },
+  { key: "secondMortgageHeloc", regex: /\b(heloc|second mortgage|home equity line)\b/i, parse: (m) => m[1]! },
+  { key: "loanType", regex: /\b(FHA loan|VA loan|USDA loan|conventional loan|conventional mortgage)\b/i, parse: (m) => m[1]! },
+  { key: "arrears", regex: /\b(behind on (?:my |the )?(?:payments|mortgage)|in arrears|missed (?:a )?payment)\b/i, parse: (m) => m[1]! },
+  { key: "termsResponse", regex: /\b(cash only|need it all (?:now|upfront)|not interested in (?:terms|payments|financing)|open to (?:terms|payments|financing)|willing to (?:consider|do) payments)\b/i, parse: (m) => (/cash only|need it all|not interested/i.test(m[1]!) ? "CASH_ONLY" : "OPEN_TO_TERMS") },
 ];
 
-const QUESTION_PHRASING: Record<QualificationKey, string> = {
-  propertyType: "Is it a single-family house, or does it have more than one unit?",
-  sellerReason: "Mind if I ask what's driving the decision to sell?",
-  timeline: "Do you have a timeframe in mind for when you'd want this done?",
-  condition: "How's the property holding up overall -- anything major that needs work?",
-  occupancy: "Is anyone living there right now, or is it vacant?",
-  currentRent: "Is it currently rented, and if so, what's the rent?",
-  mortgageBalance: "Do you happen to know roughly what's left on the mortgage?",
-  interestRate: "Do you know what interest rate you're on?",
-  monthlyPayment: "What's the monthly payment on it these days?",
-  taxes: "About how much are the property taxes each year?",
-  liensDebts: "Is there anything else owed against the property, like liens or a second mortgage?",
-  askingPrice: "Do you have a number in mind for what you're hoping to get for it?",
-  cashNeeded: "Is there a certain amount of cash you'd need out of this at closing?",
-  openToTerms: "Would you be open to getting paid over time instead of all cash upfront, if the terms made sense?",
-  repairs: "Are there any repairs it needs that come to mind -- roof, plumbing, electrical, anything like that?",
-  legalCoIssues: "Any issues you know of with permits or a Certificate of Occupancy?",
-};
 
 /**
  * Zero-dependency provider: deterministic sentence templates built from numbers the
@@ -164,11 +152,21 @@ export const heuristicProvider: AiProvider = {
     );
     const whatWeStillNeed = stillMissing.map((f) => f.label);
 
-    const nextField = stillMissing[0];
-    const nextBestQuestion = nextField ? QUESTION_PHRASING[nextField.key] : "Nothing left -- this lead is fully qualified.";
+    // "Next best question" is always one of the 10 core questions (spec: "Seller
+    // Conversation Engine"), not a granular field prompt -- treat both confirmed answers
+    // and this message's fresh suggestions as "answered" so we never ask about something
+    // the seller just told us before it's even been confirmed.
+    const answeredForNav: QualificationAnswer[] = [
+      ...existingAnswers
+        .filter((a) => a.confirmed && a.value.trim())
+        .map((a): QualificationAnswer => ({ key: a.key as QualificationKey, value: a.value, confirmed: true, source: "manual" })),
+      ...extractedAnswers.map((a): QualificationAnswer => ({ key: a.field as QualificationKey, value: String(a.value), confirmed: true, source: "seller_message" })),
+    ];
+    const next = nextCoreQuestion(answeredForNav);
+    const nextBestQuestion = next ? next.question : "Nothing left -- this lead is fully qualified.";
 
     const ack = extractedAnswers.length > 0 ? "Thanks, that's really helpful. " : "Thanks for getting back to me! ";
-    const suggestedResponse = nextField ? `${ack}${QUESTION_PHRASING[nextField.key]}` : `${ack}I think I have everything I need for now -- let me take a look and follow up shortly.`;
+    const suggestedResponse = next ? `${ack}${next.question}` : `${ack}I think I have everything I need for now -- let me take a look and follow up shortly.`;
 
     return { extractedAnswers, whatWeKnow, whatWeStillNeed, nextBestQuestion, suggestedResponse };
   },

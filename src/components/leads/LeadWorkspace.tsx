@@ -6,10 +6,20 @@ import Link from "next/link";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { VoiceInput } from "@/components/ui/VoiceInput";
+import { InfoTooltip } from "@/components/ui/Tooltip";
 import { getAiProvider } from "@/lib/ai/provider";
 import type { SellerMessageAnalysis } from "@/lib/ai/types";
-import { computeLeadPriority, draftFollowUpMessage } from "@/lib/leadgen";
-import { QUALIFICATION_FIELDS, type QualificationAnswer, type QualificationKey } from "@/lib/types/leadgen";
+import {
+  computeLeadPriority, coreQuestionsAnsweredCount, draftFollowUpMessage, nextCoreQuestion, routeStrategy,
+} from "@/lib/leadgen";
+import {
+  CORE_QUESTIONS, QUALIFICATION_FIELDS, VERIFICATION_CHECKLIST_ITEMS,
+  type QualificationAnswer, type QualificationKey, type VerificationChecklistItem,
+} from "@/lib/types/leadgen";
+import { NextQuestionCard } from "./NextQuestionCard";
+import { ObjectionAssistant } from "./ObjectionAssistant";
+import { StrategyRouterCard } from "./StrategyRouterCard";
+import { TermsGate } from "./TermsGate";
 
 const STATUSES = [
   "NEW", "TALKING", "QUALIFIED", "CALL_SCHEDULED", "ANALYZING", "OFFER",
@@ -32,12 +42,18 @@ interface LeadRecord {
   notes: string | null;
   dealId: string | null;
   qualification: QualificationAnswer[] | null;
+  skippedQuestions: number[] | null;
+  verificationChecklist: VerificationChecklistItem[] | null;
   lastContactAt: string | null;
   nextFollowUpAt: string | null;
 }
 
 function labelFor(key: QualificationKey): string {
   return QUALIFICATION_FIELDS.find((f) => f.key === key)?.label ?? key;
+}
+
+function defaultChecklist(): VerificationChecklistItem[] {
+  return VERIFICATION_CHECKLIST_ITEMS.map((item) => ({ item, checked: false }));
 }
 
 export function LeadWorkspace({
@@ -50,6 +66,10 @@ export function LeadWorkspace({
   const router = useRouter();
   const [lead, setLead] = useState(initialLead);
   const [qualification, setQualification] = useState<QualificationAnswer[]>(initialLead.qualification ?? []);
+  const [skippedQuestions, setSkippedQuestions] = useState<number[]>(initialLead.skippedQuestions ?? []);
+  const [verificationChecklist, setVerificationChecklist] = useState<VerificationChecklistItem[]>(
+    initialLead.verificationChecklist ?? defaultChecklist()
+  );
   const [sellerMessage, setSellerMessage] = useState("");
   const [analysis, setAnalysis] = useState<SellerMessageAnalysis | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -58,12 +78,17 @@ export function LeadWorkspace({
   const [handingOff, setHandingOff] = useState(false);
 
   const priority = useMemo(() => computeLeadPriority(qualification), [qualification]);
-  const answeredCount = qualification.filter((q) => q.confirmed && q.value.trim()).length;
-  const nextField = QUALIFICATION_FIELDS.find(
-    (f) => !qualification.some((q) => q.key === f.key && q.confirmed && q.value.trim())
+  const coreAnsweredCount = useMemo(() => coreQuestionsAnsweredCount(qualification), [qualification]);
+  const nextQuestion = useMemo(() => nextCoreQuestion(qualification, skippedQuestions), [qualification, skippedQuestions]);
+  const strategy = useMemo(() => routeStrategy(qualification, priority), [qualification, priority]);
+  const termsResponseValue = qualification.find((q) => q.key === "termsResponse" && q.confirmed)?.value;
+  const showTermsGate = termsResponseValue === "OPEN_TO_TERMS" || termsResponseValue === "MAYBE_NEEDS_EXPLANATION";
+
+  const answeredTopics = useMemo(
+    () => CORE_QUESTIONS.filter((q) => qualification.some((a) => q.fields.includes(a.key) && a.confirmed && a.value.trim())).map((q) => q.topic),
+    [qualification]
   );
-  // Derived live from current qualification state (not frozen from the last "Analyze" call),
-  // so confirming a suggested answer immediately shows up here.
+
   const currentlyKnown = useMemo(
     () => qualification.filter((q) => q.confirmed && q.value.trim()).map((q) => `${labelFor(q.key)}: ${q.value}`),
     [qualification]
@@ -84,16 +109,30 @@ export function LeadWorkspace({
     if (res.ok) setLead(await res.json());
   }
 
-  function updateAnswer(key: QualificationKey, value: string) {
-    setQualification((prev) => {
-      const existing = prev.find((q) => q.key === key);
-      if (existing) return prev.map((q) => (q.key === key ? { ...q, value, confirmed: true, source: "manual" } : q));
-      return [...prev, { key, value, confirmed: true, source: "manual" }];
-    });
+  async function commitQualification(next: QualificationAnswer[]) {
+    setQualification(next);
+    const p = computeLeadPriority(next);
+    await patch({ qualification: next, priorityLevel: p.level, priorityReasons: p.reasons });
   }
 
-  async function saveQualification() {
-    await patch({ qualification, priorityLevel: priority.level, priorityReasons: priority.reasons });
+  function updateAnswer(key: QualificationKey, value: string, source: QualificationAnswer["source"] = "manual") {
+    const existing = qualification.find((q) => q.key === key);
+    const next = existing
+      ? qualification.map((q) => (q.key === key ? { ...q, value, confirmed: true, source } : q))
+      : [...qualification, { key, value, confirmed: true, source }];
+    void commitQualification(next);
+  }
+
+  async function skipQuestion(id: number) {
+    const next = [...skippedQuestions, id];
+    setSkippedQuestions(next);
+    await patch({ skippedQuestions: next });
+  }
+
+  async function toggleChecklistItem(item: string, checked: boolean) {
+    const next = verificationChecklist.map((c) => (c.item === item ? { ...c, checked } : c));
+    setVerificationChecklist(next);
+    await patch({ verificationChecklist: next });
   }
 
   async function analyzeMessage() {
@@ -105,13 +144,12 @@ export function LeadWorkspace({
     setAnalyzing(false);
   }
 
+  function editExtracted(field: string, value: string) {
+    setAnalysis((a) => (a ? { ...a, extractedAnswers: a.extractedAnswers.map((x) => (x.field === field ? { ...x, value } : x)) } : a));
+  }
+
   function confirmSuggested(field: string, value: string | number | boolean) {
-    setQualification((prev) => {
-      const key = field as QualificationKey;
-      const existing = prev.find((q) => q.key === key);
-      const entry: QualificationAnswer = { key, value: String(value), confirmed: true, source: "seller_message" };
-      return existing ? prev.map((q) => (q.key === key ? entry : q)) : [...prev, entry];
-    });
+    updateAnswer(field as QualificationKey, String(value), "seller_message");
     setAnalysis((a) => (a ? { ...a, extractedAnswers: a.extractedAnswers.filter((e) => e.field !== field) } : a));
   }
 
@@ -126,7 +164,7 @@ export function LeadWorkspace({
   }
 
   function generateFollowUp() {
-    setDraftFollowUp(draftFollowUpMessage(lead.sellerName, lead.address ?? undefined, nextField?.label));
+    setDraftFollowUp(draftFollowUpMessage(lead.sellerName, lead.address ?? undefined, nextQuestion?.question));
   }
 
   async function markContacted() {
@@ -145,6 +183,11 @@ export function LeadWorkspace({
           {(groupName || marketName) && (
             <p className="text-sm text-text-secondary">
               Source: {marketName ?? ""}{groupName ? ` -- ${groupName}` : ""}
+            </p>
+          )}
+          {answeredTopics.length > 0 && (
+            <p className="mt-1 text-sm text-text-secondary">
+              You already know: {answeredTopics.join(", ")} ({coreAnsweredCount}/10). Don&apos;t restart qualification.
             </p>
           )}
         </div>
@@ -193,17 +236,27 @@ export function LeadWorkspace({
 
       <Card>
         <div className="flex items-center justify-between">
-          <CardTitle>Seller qualification</CardTitle>
-          <span className="text-xs text-text-secondary">{answeredCount} of {QUALIFICATION_FIELDS.length} answered</span>
+          <CardTitle>
+            Seller qualification
+            <InfoTooltip text="Questions 1-8 and 10 are reconstructed from the Creative Finance Playbook framework we studied. Question 9 (payment + rate) is our own underwriting addition -- it's essential for evaluating any payment-based structure but isn't part of the original source material." />
+          </CardTitle>
+          <span className="text-xs text-text-secondary">{coreAnsweredCount} of 10 core questions answered</span>
         </div>
         <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-soft-blue">
-          <div className="h-2 rounded-full bg-primary-blue" style={{ width: `${(answeredCount / QUALIFICATION_FIELDS.length) * 100}%` }} />
+          <div className="h-2 rounded-full bg-primary-blue" style={{ width: `${(coreAnsweredCount / 10) * 100}%` }} />
         </div>
-        {nextField && (
-          <p className="mt-3 rounded-card bg-soft-blue px-3 py-2 text-sm text-navy">
-            <strong>Next best question:</strong> {nextField.label}
-          </p>
-        )}
+      </Card>
+
+      <NextQuestionCard
+        question={nextQuestion}
+        onMarkAnswered={(field, value) => updateAnswer(field as QualificationKey, value)}
+        onSkip={skipQuestion}
+        onSellerDoesntKnow={(field) => updateAnswer(field as QualificationKey, "Unknown")}
+      />
+
+      <Card>
+        <CardTitle>All fields</CardTitle>
+        <p className="mt-1 text-xs text-text-secondary">Every fact the 10 questions can capture -- fill in anything you already know.</p>
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {QUALIFICATION_FIELDS.map((f) => {
             const answer = qualification.find((q) => q.key === f.key);
@@ -212,16 +265,14 @@ export function LeadWorkspace({
                 {f.label}
                 <input
                   defaultValue={answer?.value ?? ""}
-                  onBlur={(e) => updateAnswer(f.key, e.target.value)}
+                  onBlur={(e) => e.target.value !== (answer?.value ?? "") && updateAnswer(f.key, e.target.value)}
                   className={inputClass}
                 />
               </label>
             );
           })}
         </div>
-        <div className="mt-3 flex justify-end">
-          <Button onClick={saveQualification} disabled={saving}>{saving ? "Saving..." : "Save qualification"}</Button>
-        </div>
+        {saving && <p className="mt-2 text-xs text-text-secondary">Saving...</p>}
       </Card>
 
       <Card>
@@ -238,12 +289,17 @@ export function LeadWorkspace({
           <div className="mt-4 flex flex-col gap-3">
             {analysis.extractedAnswers.length > 0 && (
               <div>
-                <p className="text-xs font-semibold uppercase text-text-secondary">Suggested new answers -- confirm to save</p>
+                <p className="text-xs font-semibold uppercase text-text-secondary">Here&apos;s what I heard -- confirm or edit</p>
                 <div className="mt-1 flex flex-col gap-2">
                   {analysis.extractedAnswers.map((a) => (
-                    <div key={a.field} className="flex items-center justify-between rounded-card border border-primary-blue/40 bg-soft-blue px-3 py-2 text-sm">
-                      <span><strong>{labelFor(a.field as QualificationKey)}</strong>: {String(a.value)}</span>
-                      <button onClick={() => confirmSuggested(a.field, a.value)} className="text-xs font-medium text-primary-blue">Confirm</button>
+                    <div key={a.field} className="flex items-center gap-2 rounded-card border border-primary-blue/40 bg-soft-blue px-3 py-2 text-sm">
+                      <strong className="whitespace-nowrap">{labelFor(a.field as QualificationKey)}:</strong>
+                      <input
+                        value={String(a.value)}
+                        onChange={(e) => editExtracted(a.field, e.target.value)}
+                        className="flex-1 rounded-card border border-primary-blue/30 bg-canvas px-2 py-1 text-sm"
+                      />
+                      <button onClick={() => confirmSuggested(a.field, a.value)} className="whitespace-nowrap text-xs font-medium text-primary-blue">Confirm</button>
                     </div>
                   ))}
                 </div>
@@ -262,7 +318,7 @@ export function LeadWorkspace({
               </div>
             </div>
             <div className="rounded-card bg-soft-blue p-3 text-sm text-navy">
-              <p className="text-xs font-semibold uppercase text-text-secondary">Suggested response</p>
+              <p className="text-xs font-semibold uppercase text-text-secondary">Suggested response (next best question)</p>
               <p className="mt-1">{analysis.suggestedResponse}</p>
               <button
                 onClick={() => navigator.clipboard.writeText(analysis.suggestedResponse).catch(() => {})}
@@ -274,6 +330,14 @@ export function LeadWorkspace({
           </div>
         )}
       </Card>
+
+      <ObjectionAssistant />
+
+      <StrategyRouterCard result={strategy} />
+
+      {showTermsGate && (
+        <TermsGate checklist={verificationChecklist} onToggle={toggleChecklistItem} />
+      )}
 
       <Card>
         <CardTitle>Follow-up</CardTitle>

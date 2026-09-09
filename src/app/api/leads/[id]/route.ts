@@ -6,7 +6,7 @@ import { LEAD_JSON_FIELDS, deserializeJsonFields, serializeJsonFields } from "@/
 const PATCHABLE_FIELDS = [
   "sellerName", "address", "phone", "email", "status", "motivation", "details", "notes",
   "marketId", "groupId", "sourcePostId", "dealId",
-  "qualification", "priorityLevel", "priorityReasons",
+  "qualification", "priorityLevel", "priorityReasons", "skippedQuestions", "verificationChecklist",
   "lastContactAt", "nextFollowUpAt",
 ] as const;
 

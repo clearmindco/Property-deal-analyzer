@@ -87,6 +87,42 @@ Full vertical slice of the spec's Facebook inbound lead-gen system, built human-
   lead-generation-vs-calling-back bottleneck, per-group "stop using" calls, and the single
   most overdue follow-up.
 
+## Seller Conversation Engine -- "10 Magic Questions" system (new)
+
+Rebuilds seller qualification around the spec's exact 10 core questions (previously a flat
+16-field list), and adds the objection assistant, strategy router, and terms-verification
+gate on top of it:
+
+- **10 core questions** (`src/lib/types/leadgen.ts` -> `CORE_QUESTIONS`, `src/lib/leadgen/
+  coreQuestions.ts`) -- each question maps to one or more underlying facts, so a seller who
+  volunteers information out of order (spec's worked example) is never asked for it twice.
+  Progress shown as "X of 10 core questions answered," not a raw field count. Question 9
+  (payment + interest rate) is explicitly labeled as our own underwriting addition, not part
+  of the source framework, per the spec's source-labeling requirement.
+- **Next Best Question card** -- one question at a time, with Copy Question / Edit / Mark
+  Answered / Skip / Seller Doesn't Know, exactly per spec. Skipped questions persist
+  (`Lead.skippedQuestions`) and are excluded from rotation until revisited.
+- **Seller response assistant** -- "Here's what I heard" now lets you edit an extracted
+  value inline before confirming (not just accept/reject), and "next best question" always
+  resolves to one of the 10 scripted questions, never a granular field prompt.
+- **Objection assistant** (`src/lib/leadgen/objections.ts`, unit-tested) -- all 8 scripted
+  objection responses from the spec (cash-only, not-interested-in-terms, wants-asking-price,
+  why-payments, taking-over-mortgage, what-if-you-stop-paying, needs-to-consult,
+  just-make-an-offer), matched from pasted text or picked manually. Tested to never let the
+  subject-to script promise "the bank won't care" or claim "there's no risk."
+- **Strategy router** (`src/lib/leadgen/strategyRouter.ts`, unit-tested) -- routes to one or
+  more of the 10 lanes (Cash/BRRRR, Seller Finance, Subject-To, Hybrid, Lease Option,
+  Wholesale, Wholetail, Traditional, Follow-Up, Pass) from the seller's actual answers.
+  Never recommends a terms-based lane when the seller said cash-only; PASS is always a valid
+  output, never forced into a structure to avoid losing a lead.
+- **Terms verification gate** -- the moment a seller responds OPEN_TO_TERMS or MAYBE, a
+  "POTENTIAL CREATIVE-FINANCE OPPORTUNITY -- DO NOT SIGN YET" card appears with the full
+  verification checklist (mortgage statement, title, insurance, attorney/title review, etc.),
+  persisted per lead, nothing pre-checked.
+- **Resume context** -- reopening a lead (or the AI Mentor's follow-up nudge) states which
+  topics are already known ("property overview, motivation, mortgage balance...") so
+  qualification is never restarted from scratch.
+
 ## Not yet built (next in sequence)
 
 - **18. Creative-finance analyzer** -- seller-financing / subject-to modeling, risk warnings,
