@@ -1,0 +1,149 @@
+// Prisma schema for Property Deal Analyzer.
+//
+// MVP uses SQLite (DATABASE_URL="file:./dev.db") so the app runs with zero
+// external services. Every model that holds user data carries a `userId`
+// foreign key so switching the datasource to Postgres/Supabase later is a
+// one-line config change, not a data-model rewrite.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime @default(now())
+
+  deals   Deal[]
+  lenders Lender[]
+  leads   Lead[]
+  contacts Contact[]
+}
+
+// SQLite has no native enum support in Prisma, so DealStage/LeadStatus are plain strings
+// constrained by zod at the API boundary. Valid DealStage values: ANALYZING | OFFER |
+// UNDER_CONTRACT | CLOSED | DEAD.
+model Deal {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  isDemo Boolean @default(false)
+  stage  String @default("ANALYZING")
+
+  // Identity / entry (spec section 4)
+  address       String
+  city          String?
+  state         String?
+  zip           String?
+  askingPrice   Float?
+  propertyType  String?
+  units         Int      @default(1)
+  bedrooms      Int?
+  bathrooms     Float?
+  sqft          Int?
+
+  // Each of these holds a typed JSON blob (see src/lib/types/deal.ts), serialized to a
+  // String because Prisma's SQLite connector has no native Json type. src/lib/jsonFields.ts
+  // handles the serialize/deserialize boundary everywhere these are read or written --
+  // switching the datasource to Postgres later can drop that layer and use Json directly.
+  property      String? // condition, ages of systems, occupancy, taxes, etc.
+  seller        String? // seller motivation / CRM-lite fields for this deal
+  valueArv      String? // as-is value, ARV bands, comps, confidence
+  rehab         String? // line items with low/expected/high + contingency
+  rent          String? // market rent + Section 8 analysis
+  financing     String? // hard money assumptions + refinance assumptions
+  creativeFinance String? // seller-finance / subject-to analysis
+  assumptions   String? // investor requirements used by acquisition price engine
+  dealKillers   String? // array of flags {key, status, note}
+
+  notes    Note[]
+  documents Document[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  dealId    String
+  deal      Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  category  String // seller | property | contractor | lender | general
+  text      String
+  source    String   @default("manual") // manual | voice
+  createdAt DateTime @default(now())
+}
+
+model Document {
+  id        String   @id @default(cuid())
+  dealId    String
+  deal      Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  name      String
+  url       String
+  kind      String // photo | screenshot | document
+  createdAt DateTime @default(now())
+}
+
+model Lender {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  contact     String?
+  email       String?
+  phone       String?
+  website     String?
+  geography   String?
+  loanType    String? // hard_money | dscr | conventional | other
+  terms       String // JSON-serialized HardMoneyTerms (rate, points, ltcCap, arvLtvCap, fees, etc.)
+  verified    Boolean  @default(false)
+  quoteDate   DateTime?
+  notes       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Valid LeadStatus values: NEW | TALKING | QUALIFIED | CALL_SCHEDULED | ANALYZING | OFFER |
+// FOLLOW_UP | UNDER_CONTRACT | CLOSED | DEAD (see src/app/api/leads for the zod boundary).
+model Lead {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  sellerName String
+  address    String?
+  phone      String?
+  email      String?
+  status     String @default("NEW")
+  motivation String? // JSON-serialized observable motivation signals (spec section 28)
+  details    String? // JSON-serialized reason for selling, timeline, debts, cash need, etc.
+  notes      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Contact {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name     String
+  company  String?
+  trade    String // general_contractor | plumbing | electrical | ...
+  phone    String?
+  email    String?
+  category String @default("BACKUP") // PREFERRED | BACKUP | DO_NOT_USE
+  notes    String?
+
+  createdAt DateTime @default(now())
+}

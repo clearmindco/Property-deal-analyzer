@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-canvas: 247 250 252; /* #F7FAFC */
+  --color-card: 255 255 255; /* #FFFFFF */
+  --color-elevated: 234 244 250; /* soft blue used as light-mode elevated surface */
+  --color-navy: 23 59 87; /* #173B57 */
+  --color-primary-blue: 79 143 184; /* #4F8FB8 */
+  --color-soft-blue: 234 244 250; /* #EAF4FA */
+  --color-silver: 203 213 223; /* #CBD5DF */
+  --color-slate: 100 118 135; /* #647687 */
+  --color-text-primary: 24 36 45; /* #18242D */
+  --color-text-secondary: 100 118 135; /* #647687 */
+}
+
+:root:not([data-theme="light"]) {
+  @media (prefers-color-scheme: dark) {
+    --color-canvas: 14 24 32; /* #0E1820 */
+    --color-card: 22 36 46; /* #16242E */
+    --color-elevated: 28 45 57; /* #1C2D39 */
+    --color-navy: 23 59 87;
+    --color-primary-blue: 120 183 221; /* #78B7DD */
+    --color-soft-blue: 40 72 93; /* #28485D */
+    --color-silver: 143 161 174; /* #8FA1AE */
+    --color-text-primary: 244 247 249; /* #F4F7F9 */
+    --color-text-secondary: 179 192 201; /* #B3C0C9 */
+  }
+}
+
+:root[data-theme="dark"] {
+  --color-canvas: 14 24 32;
+  --color-card: 22 36 46;
+  --color-elevated: 28 45 57;
+  --color-navy: 23 59 87;
+  --color-primary-blue: 120 183 221;
+  --color-soft-blue: 40 72 93;
+  --color-silver: 143 161 174;
+  --color-text-primary: 244 247 249;
+  --color-text-secondary: 179 192 201;
+}
+
+body {
+  background-color: rgb(var(--color-canvas));
+  color: rgb(var(--color-text-primary));
+}
+
+.tooltip-trigger {
+  @apply underline decoration-dotted decoration-slate cursor-help;
+}
