@@ -123,6 +123,64 @@ gate on top of it:
   topics are already known ("property overview, motivation, mortgage balance...") so
   qualification is never restarted from scratch.
 
+## Smart Contract Builder -- New York creative-finance legal workflow (new)
+
+Smallest safe vertical slice of the spec's legal module, built without touching any existing
+calc engine, screen, or data model: Seller Lead -> Deal -> Transaction Type -> Legal Intake ->
+Risk Gate -> Required Document Checklist -> Attorney Intake Summary. Generic architecture
+(`Jurisdiction`, `LegalRule`/`LegalSource`, `LegalCase`, `DocumentTemplate`/`TemplateVersion`,
+`GeneratedDocument`, `ComplianceEvent`) so later phases (template registry, document assembly,
+subject-to/seller-finance/hybrid packages, servicing, local jurisdiction modules) can be added
+without rewriting the trigger logic.
+
+- **Non-negotiable architecture**: "AI explains. Data supports. Math decides. Human approves.
+  Attorney-approved language stays locked." No engine invents statutory text, claims a document
+  is airtight, or guarantees enforceability -- every template and generated document carries an
+  explicit `AttorneyReviewStatus`, and every summary/gate message carries a plain disclaimer.
+- **Jurisdiction engine** (`src/lib/legal/jurisdiction.ts`) -- resolves Rochester/Monroe,
+  Buffalo/Erie, Syracuse/Onondaga by name; generic NY fallback for anything else. Initial
+  jurisdiction is New York State only, per spec.
+- **New York distressed-property red gate** (`src/lib/legal/riskGate.ts`, unit-tested) -- shaped
+  after RPL Article 12-B / the Home Equity Theft Prevention Act (RPL 265-a): fires only on the
+  spec's own fact pattern (owner-occupied 1-4 family + one of foreclosure / notice of default /
+  notice of pendency / tax-or-utility lien sale / prior foreclosure reconveyance / seller-retained
+  possession). An unanswered distress question keeps the case in an incomplete-intake state
+  rather than silently clearing the gate. Never restates statutory text or claims compliance.
+  When triggered, standard contract generation is blocked and the checklist collapses to
+  attorney-drafted documents only.
+- **Required document checklist** (`src/lib/legal/documentRequirements.ts`, unit-tested) --
+  varies by transaction type (cash / seller finance / subject-to / hybrid) and property facts
+  (e.g. property condition disclosure for owner-occupied 1-4 family/condo), each item with a
+  plain-language reason and an explicit attorney-review flag.
+- **Financing verification precedence** (`src/lib/legal/financingVerification.ts`, unit-tested)
+  -- a verified monthly payment/loan balance always controls over what the seller reported from
+  memory, but the seller-reported value is never discarded -- it stays visible for the audit
+  trail.
+- **Attorney review versioning + document immutability** (`src/lib/legal/templateVersioning.ts`,
+  `src/lib/legal/documentImmutability.ts`, unit-tested) -- editing clause content on a new
+  template version can never silently carry forward a prior attorney approval (resets to
+  "needs re-review"); an executed (signed) document can never be modified in place.
+  9 spec test scenarios covered by name across these engines' unit tests.
+- **Attorney intake summary** (`src/lib/legal/attorneySummary.ts`) -- property facts, trigger
+  flags, financing summary (with source), required documents, open questions, and a standing
+  disclaimer -- built entirely from the deterministic engines above, never from a free-form AI
+  narrative.
+- **UI** -- new Legal tab on the deal workspace (`src/components/deal/LegalTab.tsx`): start
+  workflow, pre-contract legal screen (tri-state Yes/No/Unknown distress questions so "unknown"
+  is never conflated with "no"), red-gate banner, required document checklist, attorney intake
+  summary.
+- **API** -- `POST/GET /api/deals/[id]/legal-case` (idempotent create, seeds transaction type
+  from the lead's strategy-router recommendation so the seller is never asked twice) and
+  `PATCH /api/legal-cases/[id]` (updates intake/transaction type, recomputes gate + checklist +
+  summary together through one `computeLegalCase` pipeline so they can't drift apart; logs a
+  `ComplianceEvent` the moment a case newly trips the red gate).
+- **AI Mentor** -- surfaces any case on the red gate as the top-priority action, and flags
+  creative-finance deals with an unfinished legal screen.
+
+Live-tested against the production build: triggering "owner-occupied + notice of default"
+correctly raises the red gate, collapses the document checklist to attorney-only documents, and
+is surfaced by the AI Mentor as the top action -- all confirmed via screenshot.
+
 ## Not yet built (next in sequence)
 
 - **18. Creative-finance analyzer** -- seller-financing / subject-to modeling, risk warnings,
@@ -132,6 +190,12 @@ gate on top of it:
 - ARV comparable-sales *matching logic* is manual today (user picks STRONG/MODERATE/WEAK/
   EXCLUDED and types a reason) rather than computed from listing data -- no licensed
   MLS/property-data API is wired in, per the spec's instruction not to fake one.
+- **Legal module phases beyond the vertical slice** -- deliberately not started until the slice
+  above is proven out: Template Registry, Document Assembly, Attorney Review Versioning UI,
+  Subject-To / Seller-Finance / Hybrid document packages, Servicing Workflow, Local Jurisdiction
+  Modules. The data model (`DocumentTemplate`/`TemplateVersion`/`GeneratedDocument`) and the
+  versioning/immutability engines already exist and are unit-tested; there is just no template
+  content or document-assembly UI wired to them yet.
 - Section 8 payment-standard tables are a placeholder (not yet loaded/versioned per ZIP).
 - Lender contact center (email integration, sent/response tracking) is not built --
   `email`/`phone`/`website` fields exist on the Lender record but there's no send flow.

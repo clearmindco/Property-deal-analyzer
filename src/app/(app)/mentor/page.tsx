@@ -4,6 +4,8 @@ import { Card, CardTitle } from "@/components/ui/Card";
 import type { DealKillerFlag } from "@/lib/types/deal";
 import { computeGroupPerformance } from "@/lib/leadgen";
 import { CORE_QUESTIONS, type QualificationAnswer } from "@/lib/types/leadgen";
+import { LEGAL_CASE_JSON_FIELDS, deserializeJsonFields } from "@/lib/jsonFields";
+import type { LegalTriggerResult } from "@/lib/types/legal";
 
 function daysSince(date: Date | null): number | null {
   if (!date) return null;
@@ -12,12 +14,14 @@ function daysSince(date: Date | null): number | null {
 
 export default async function MentorPage() {
   const userId = await requireUserId();
-  const [deals, leads, groups, posts] = await Promise.all([
+  const [deals, leads, groups, posts, legalCasesRaw] = await Promise.all([
     prisma.deal.findMany({ where: { userId } }),
     prisma.lead.findMany({ where: { userId } }),
     prisma.group.findMany({ where: { userId }, include: { market: true } }),
     prisma.post.findMany({ where: { userId } }),
+    prisma.legalCase.findMany({ where: { userId } }),
   ]);
+  const legalCases = legalCasesRaw.map((lc) => deserializeJsonFields(lc, LEGAL_CASE_JSON_FIELDS));
 
   const analyzedCount = deals.filter((d) => d.valueArv || d.rehab || d.rent).length;
   const activeLeadCount = leads.filter((l) => !["CLOSED", "DEAD"].includes(l.status)).length;
@@ -67,6 +71,25 @@ export default async function MentorPage() {
     if (performance.recommendation === "STOP USING") {
       actions.push(`Stop posting in ${group.name} for now -- ${postedCount} posts have produced no seller conversations.`);
     }
+  }
+
+  // Legal: any case sitting on the New York distressed-property red gate is the single most
+  // urgent thing in the pipeline -- never let it get buried under routine deal/lead actions.
+  const gatedCases = legalCases.filter((lc) => {
+    const trigger = lc.triggerResult as unknown as LegalTriggerResult | null;
+    return trigger?.triggered && trigger.blocksStandardContractGeneration;
+  });
+  if (gatedCases.length > 0) {
+    actions.unshift(
+      `${gatedCases.length} deal(s) are on the New York distressed-property legal hold -- do not present a standard contract on ${gatedCases.map((c) => c.dealId).length === 1 ? "it" : "them"}. Get an attorney involved before any next step.`
+    );
+  }
+
+  const incompleteLegalScreens = legalCases.filter((lc) => lc.status === "DRAFT" && lc.transactionType !== "CASH_PURCHASE");
+  if (incompleteLegalScreens.length > 0) {
+    actions.push(
+      `${incompleteLegalScreens.length} creative-finance deal(s) have an unfinished pre-contract legal screen -- finish it before generating any document.`
+    );
   }
 
   if (dealsWithOpenKillers.length > 0) {

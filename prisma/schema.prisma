@@ -21,13 +21,15 @@ model User {
   name         String?
   createdAt    DateTime @default(now())
 
-  deals    Deal[]
-  lenders  Lender[]
-  leads    Lead[]
-  contacts Contact[]
-  markets  Market[]
-  groups   Group[]
-  posts    Post[]
+  deals              Deal[]
+  lenders            Lender[]
+  leads              Lead[]
+  contacts           Contact[]
+  markets            Market[]
+  groups             Group[]
+  posts              Post[]
+  legalCases         LegalCase[]
+  generatedDocuments GeneratedDocument[]
 }
 
 // SQLite has no native enum support in Prisma, so DealStage/LeadStatus are plain strings
@@ -244,6 +246,188 @@ model Contact {
   email    String?
   category String  @default("BACKUP") // PREFERRED | BACKUP | DO_NOT_USE
   notes    String?
+
+  createdAt DateTime @default(now())
+}
+
+// ============================================================
+// SMART CONTRACT BUILDER -- New York creative-finance legal workflow.
+//
+// Non-negotiable: nothing here represents production-ready legal language.
+// Every TemplateVersion carries its own attorneyReviewStatus; UI must never
+// present DRAFT_NOT_REVIEWED content as attorney-approved. Jurisdiction and
+// LegalRule form a real registry (not switch-statement logic) so additional
+// states/counties can be added later without touching trigger code.
+// ============================================================
+
+model Jurisdiction {
+  id           String  @id @default(cuid())
+  state        String // e.g. "NY"
+  county       String? // e.g. "Monroe"
+  municipality String? // e.g. "Rochester"
+  notes        String?
+
+  sources    LegalSource[]
+  rules      LegalRule[]
+  legalCases LegalCase[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([state, county, municipality])
+}
+
+model LegalSource {
+  id             String       @id @default(cuid())
+  jurisdictionId String
+  jurisdiction   Jurisdiction @relation(fields: [jurisdictionId], references: [id], onDelete: Cascade)
+
+  statuteRef       String // e.g. "NY RPL 265-a" -- a reference, never the statute's actual text
+  title            String
+  sourceUrl        String?
+  effectiveDate    DateTime?
+  lastVerifiedDate DateTime?
+  notes            String? // e.g. "Exact statutory thresholds pending NY counsel verification"
+
+  rules LegalRule[]
+
+  createdAt DateTime @default(now())
+}
+
+// Valid LegalRule.status values: DRAFT | ACTIVE | OUTDATED. A rule describes WHEN a
+// requirement applies and WHAT is required in structured fields -- it never stores
+// AI-paraphrased statutory text. Versioned: a changed rule is a new row, old ones kept
+// for audit (never mutate ruleSummary/requiredX fields on an ACTIVE rule in place).
+model LegalRule {
+  id             String       @id @default(cuid())
+  jurisdictionId String
+  jurisdiction   Jurisdiction @relation(fields: [jurisdictionId], references: [id], onDelete: Cascade)
+  sourceId       String?
+  source         LegalSource? @relation(fields: [sourceId], references: [id])
+
+  transactionType        String? // null = applies to all transaction types
+  propertyType           String?
+  occupancyApplicability String? // e.g. "owner_occupied_1_to_4_family"
+  distressApplicability  String? // e.g. "default_or_foreclosure"
+
+  ruleSummary               String
+  requiredAction            String?
+  requiredDisclosure        String?
+  requiredDocument          String?
+  requiredFormatting        String?
+  requiredWaitingPeriodDays Int?
+  attorneyReviewRequired    Boolean @default(true)
+
+  status           String    @default("DRAFT")
+  version          Int       @default(1)
+  effectiveDate    DateTime?
+  lastVerifiedDate DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// One legal case per deal (the "Legal Intake" instance). intake/triggerResult/
+// requiredDocuments/attorneySummary are JSON (see src/lib/types/legal.ts) -- SQLite has no
+// native Json type, so these follow the same String-column pattern as Deal/Lead JSON fields.
+model LegalCase {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  dealId String  @unique
+  leadId String?
+
+  jurisdictionId String?
+  jurisdiction   Jurisdiction? @relation(fields: [jurisdictionId], references: [id])
+
+  transactionType String // CASH | BRRRR | SELLER_FINANCE | SUBJECT_TO | HYBRID | WRAP | LEASE_OPTION | TRADITIONAL | OTHER
+
+  intake            String? // LegalIntake JSON
+  triggerResult     String? // LegalTriggerResult JSON (cached, recomputed on every intake save)
+  requiredDocuments String? // DocumentRequirement[] JSON (cached)
+  attorneySummary   String? // AttorneySummary JSON (cached)
+
+  mortgageStatementReceived Boolean @default(false)
+
+  // DRAFT | GATED | READY_FOR_DOCS | READY
+  status String @default("DRAFT")
+
+  documents        GeneratedDocument[]
+  complianceEvents ComplianceEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DocumentTemplate {
+  id              String  @id @default(cuid())
+  key             String  @unique // e.g. "subject_to_disclosure"
+  name            String
+  description     String?
+  transactionType String? // null = applies across transaction types
+
+  versions TemplateVersion[]
+
+  createdAt DateTime @default(now())
+}
+
+// Valid attorneyReviewStatus values: DRAFT_NOT_REVIEWED | ATTORNEY_REVIEW_PENDING |
+// ATTORNEY_APPROVED | ATTORNEY_APPROVED_WITH_CONDITIONS | OUTDATED_RE_REVIEW_REQUIRED.
+// A new version is ALWAYS a new row -- an approved version's body is never edited in
+// place (spec: "do NOT silently update attorney-approved language").
+model TemplateVersion {
+  id         String           @id @default(cuid())
+  templateId String
+  template   DocumentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  version         Int
+  bodyPlaceholder String // placeholder/skeleton text -- never production legal language until approved
+  clauses         String? // TemplateClause[] JSON: [{ key, label, body, locked }]
+
+  attorneyReviewStatus  String    @default("DRAFT_NOT_REVIEWED")
+  attorneyName          String?
+  attorneyStateAdmitted String?
+  attorneyFirm          String?
+  reviewDate            DateTime?
+  restrictions          String?
+  nextReviewDate        DateTime?
+  notes                 String?
+
+  generatedDocuments GeneratedDocument[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([templateId, version])
+}
+
+// Once executedAt is set, a GeneratedDocument is immutable -- the API layer refuses any
+// further field changes (spec: "Never overwrite an executed contract").
+model GeneratedDocument {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  legalCaseId       String
+  legalCase         LegalCase       @relation(fields: [legalCaseId], references: [id], onDelete: Cascade)
+  templateVersionId String
+  templateVersion   TemplateVersion @relation(fields: [templateVersionId], references: [id])
+
+  fieldsSnapshot String // JSON snapshot of the variable fields used to populate this document
+
+  status     String    @default("DRAFT") // DRAFT | EXECUTED
+  executedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ComplianceEvent {
+  id          String    @id @default(cuid())
+  legalCaseId String
+  legalCase   LegalCase @relation(fields: [legalCaseId], references: [id], onDelete: Cascade)
+
+  eventType String // e.g. "GATE_TRIGGERED" | "INTAKE_UPDATED" | "DOCUMENT_EXECUTED"
+  detail    String
 
   createdAt DateTime @default(now())
 }

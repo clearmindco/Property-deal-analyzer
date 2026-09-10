@@ -13,6 +13,14 @@ export const LEAD_JSON_FIELDS = [
   "motivation", "details", "qualification", "priorityReasons", "skippedQuestions", "verificationChecklist",
 ] as const;
 
+export const LEGAL_CASE_JSON_FIELDS = [
+  "intake", "triggerResult", "requiredDocuments", "attorneySummary",
+] as const;
+
+export const TEMPLATE_VERSION_JSON_FIELDS = ["clauses"] as const;
+
+export const GENERATED_DOCUMENT_JSON_FIELDS = ["fieldsSnapshot"] as const;
+
 // Returns Record<string, unknown> rather than T: the whole point is that the JSON fields
 // change shape (object -> string), so preserving the input type here would be a lie. Callers
 // pass the result straight to Prisma, whose generated input types expect the string shape.

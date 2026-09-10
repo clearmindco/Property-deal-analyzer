@@ -20,8 +20,9 @@ import { RehabTab } from "./RehabTab";
 import { RentTab } from "./RentTab";
 import { FinancingTab } from "./FinancingTab";
 import { DecisionTab } from "./DecisionTab";
+import { LegalTab } from "./LegalTab";
 
-const TABS = ["Overview", "Property", "Value / ARV", "Rehab", "Rent", "Financing", "Decision"] as const;
+const TABS = ["Overview", "Property", "Value / ARV", "Rehab", "Rent", "Financing", "Decision", "Legal"] as const;
 type Tab = (typeof TABS)[number];
 
 interface SerializedDeal {
@@ -201,6 +202,8 @@ export function DealWorkspace({ deal }: { deal: SerializedDeal }) {
           }}
         />
       )}
+
+      {tab === "Legal" && <LegalTab dealId={deal.id} />}
     </div>
   );
 }
