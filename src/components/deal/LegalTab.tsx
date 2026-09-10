@@ -7,6 +7,7 @@ import type {
   AttorneySummary, DocumentRequirement, LegalIntake, LegalTransactionType, LegalTriggerResult,
 } from "@/lib/types/legal";
 import { LEGAL_TRANSACTION_TYPE_LABELS } from "@/lib/types/legal";
+import { GeneratedDocumentsPanel } from "./GeneratedDocumentsPanel";
 
 interface LegalCaseState {
   id: string;
@@ -244,6 +245,8 @@ export function LegalTab({ dealId }: { dealId: string }) {
           ))}
         </ul>
       </Card>
+
+      <GeneratedDocumentsPanel legalCaseId={legalCase.id} gated={triggerResult.triggered} />
 
       <Card>
         <CardTitle>Attorney intake summary</CardTitle>

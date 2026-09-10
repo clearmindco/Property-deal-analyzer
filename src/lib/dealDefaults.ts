@@ -1,5 +1,6 @@
 import type {
   DealKillerFlag, Financing, PropertyDetails, Rehab, Rent, ValueArv, InvestorRequirements,
+  CreativeFinance,
 } from "./types/deal";
 
 export function defaultPropertyDetails(): PropertyDetails {
@@ -31,6 +32,10 @@ export function defaultFinancing(): Financing {
     },
     holdPeriodMonths: 6,
   };
+}
+
+export function defaultCreativeFinance(): CreativeFinance {
+  return {};
 }
 
 export function defaultRequirements(): InvestorRequirements {

@@ -3,10 +3,10 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type {
-  DealKillerFlag, Financing, InvestorRequirements, PropertyDetails, Rehab, Rent, ValueArv,
+  CreativeFinance, DealKillerFlag, Financing, InvestorRequirements, PropertyDetails, Rehab, Rent, ValueArv,
 } from "@/lib/types/deal";
 import {
-  defaultDealKillers, defaultFinancing, defaultPropertyDetails, defaultRehab, defaultRent,
+  defaultCreativeFinance, defaultDealKillers, defaultFinancing, defaultPropertyDetails, defaultRehab, defaultRent,
   defaultRequirements, defaultValueArv,
 } from "@/lib/dealDefaults";
 import { calculateAcquisitionPrice } from "@/lib/calc/acquisitionPrice";
@@ -21,8 +21,9 @@ import { RentTab } from "./RentTab";
 import { FinancingTab } from "./FinancingTab";
 import { DecisionTab } from "./DecisionTab";
 import { LegalTab } from "./LegalTab";
+import { CreativeFinanceTab } from "./CreativeFinanceTab";
 
-const TABS = ["Overview", "Property", "Value / ARV", "Rehab", "Rent", "Financing", "Decision", "Legal"] as const;
+const TABS = ["Overview", "Property", "Value / ARV", "Rehab", "Rent", "Financing", "Creative Finance", "Decision", "Legal"] as const;
 type Tab = (typeof TABS)[number];
 
 interface SerializedDeal {
@@ -31,6 +32,7 @@ interface SerializedDeal {
   bathrooms: number | null; sqft: number | null; isDemo: boolean; stage: string;
   property: PropertyDetails | null; valueArv: ValueArv | null; rehab: Rehab | null; rent: Rent | null;
   financing: Financing | null; assumptions: InvestorRequirements | null; dealKillers: DealKillerFlag[] | null;
+  creativeFinance: CreativeFinance | null;
 }
 
 export function DealWorkspace({ deal }: { deal: SerializedDeal }) {
@@ -52,6 +54,7 @@ export function DealWorkspace({ deal }: { deal: SerializedDeal }) {
   const [financing, setFinancing] = useState<Financing>(deal.financing ?? defaultFinancing());
   const [requirements, setRequirements] = useState<InvestorRequirements>(deal.assumptions ?? defaultRequirements());
   const [dealKillers, setDealKillers] = useState<DealKillerFlag[]>(deal.dealKillers ?? defaultDealKillers());
+  const [creativeFinance, setCreativeFinance] = useState<CreativeFinance>(deal.creativeFinance ?? defaultCreativeFinance());
 
   async function patch(fields: Record<string, unknown>) {
     setSaving(true);
@@ -183,6 +186,20 @@ export function DealWorkspace({ deal }: { deal: SerializedDeal }) {
         <FinancingTab
           financing={financing} onChange={setFinancing} saving={saving} onSave={() => patch({ financing })}
           purchasePrice={askingPriceNum ?? 0} rehabTotal={rehabTotal} arv={arv} rentMonthly={rentMonthly}
+        />
+      )}
+
+      {tab === "Creative Finance" && (
+        <CreativeFinanceTab
+          creativeFinance={creativeFinance}
+          onChange={setCreativeFinance}
+          saving={saving}
+          onSave={() => patch({ creativeFinance })}
+          arv={arv}
+          rentMonthly={rentMonthly}
+          expenses={financing.expenses}
+          cashBrrrMonthlyCashFlow={acquisition?.projectionAtAsking?.postRefiCashFlowMonthly ?? null}
+          cashBrrrCashToClose={acquisition?.projectionAtAsking?.cashRemainingInProperty ?? null}
         />
       )}
 

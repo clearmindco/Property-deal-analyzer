@@ -3,15 +3,19 @@ import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/session";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { fetchOnboardingInputs } from "@/lib/onboarding/fetchOnboardingInputs";
+import { computeOnboardingProgress } from "@/lib/onboarding/computeOnboardingProgress";
 
 export default async function DashboardPage() {
   const userId = await requireUserId();
-  const [deals, leadCount, lenderCount] = await Promise.all([
+  const [deals, leadCount, lenderCount, onboardingInputs] = await Promise.all([
     prisma.deal.findMany({ where: { userId }, orderBy: { updatedAt: "desc" }, take: 5 }),
     prisma.lead.count({ where: { userId } }),
     prisma.lender.count({ where: { userId } }),
+    fetchOnboardingInputs(userId),
   ]);
   const dealCount = await prisma.deal.count({ where: { userId } });
+  const onboardingProgress = computeOnboardingProgress(onboardingInputs);
 
   return (
     <div className="flex flex-col gap-6">
@@ -24,6 +28,25 @@ export default async function DashboardPage() {
           <Button>+ New Deal</Button>
         </Link>
       </div>
+
+      {!onboardingProgress.allDone && (
+        <Card className="border-primary-blue/40 bg-soft-blue/40">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-navy">New here? Start with your first deal.</CardTitle>
+              <p className="mt-1 text-sm text-text-primary">
+                {onboardingProgress.nextStep
+                  ? `Next: ${onboardingProgress.nextStep.title}`
+                  : "You're almost through the guided walkthrough."}{" "}
+                ({onboardingProgress.percentComplete}% of the way through the required steps)
+              </p>
+            </div>
+            <Link href="/getting-started">
+              <Button>Continue walkthrough</Button>
+            </Link>
+          </div>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>

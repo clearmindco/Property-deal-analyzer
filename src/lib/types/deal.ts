@@ -171,3 +171,47 @@ export interface DealKillerFlag {
 export interface LenderTerms extends HardMoneyTerms {
   quoteSource?: "DIRECT_QUOTE" | "ADVERTISED";
 }
+
+// Creative-finance analyzer: subject-to / seller-finance / hybrid modeling. Kept as its own
+// JSON blob (existing `creativeFinance` column) rather than folded into `financing`, since it
+// only applies to some deals and shouldn't complicate the cash/BRRRR financing model every
+// other deal uses.
+
+export interface ExistingLoanTerms {
+  balance?: number;
+  monthlyPayment?: number;
+  interestRatePct?: number; // decimal, e.g. 0.045
+  escrowedForTaxesInsurance?: boolean;
+}
+
+export interface SubjectToTerms {
+  existingLoan: ExistingLoanTerms;
+  cashToSeller?: number;
+  arrearsToCoverAtClosing?: number;
+  closingCosts?: number;
+}
+
+export interface SellerFinanceTerms {
+  purchasePrice?: number;
+  downPayment?: number;
+  noteRatePct?: number; // decimal
+  noteTermYears?: number;
+  /** 0 or undefined = fully amortizing, no balloon. */
+  balloonMonths?: number;
+  closingCosts?: number;
+}
+
+export interface HybridTerms {
+  existingLoan: ExistingLoanTerms;
+  sellerCarryAmount?: number;
+  sellerCarryRatePct?: number;
+  sellerCarryTermYears?: number;
+  cashToSeller?: number;
+  closingCosts?: number;
+}
+
+export interface CreativeFinance {
+  subjectTo?: SubjectToTerms;
+  sellerFinance?: SellerFinanceTerms;
+  hybrid?: HybridTerms;
+}

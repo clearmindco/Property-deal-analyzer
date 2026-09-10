@@ -181,21 +181,84 @@ Live-tested against the production build: triggering "owner-occupied + notice of
 correctly raises the red gate, collapses the document checklist to attorney-only documents, and
 is surfaced by the AI Mentor as the top action -- all confirmed via screenshot.
 
+## Guided first-deal journey (new)
+
+A beginner-friendliness pass tying every module above into one visible spine, built entirely
+from data that already exists (no new required input, no separate "mark done" button that can
+drift from reality):
+
+- **Onboarding progress engine** (`src/lib/onboarding/computeOnboardingProgress.ts`,
+  unit-tested) -- 7 ordered steps (save a market/group, post, qualify a lead, get a deal into
+  the analyzer, run the numbers, see the Decision, optionally start the legal workflow), each
+  computed from real counts, never a stored flag. A user who skips lead-gen and creates a deal
+  directly still progresses correctly.
+- **`/getting-started` page** -- the full checklist with a progress bar, "Do this next"
+  highlighting, and a direct link into the right existing screen for every step.
+- **Dashboard banner** -- "New here? Start with your first deal," shown only while required
+  steps remain, naming the next step and linking to the walkthrough.
+
+## Creative-finance analyzer (new -- closes item 18 below)
+
+Real cash-flow/ROI modeling for subject-to, seller-finance, and hybrid structures, side by side
+with the existing Cash/BRRRR plan -- the biggest functional gap between the legal/seller-
+conversation modules and the underwriting math:
+
+- **`src/lib/calc/creativeFinance.ts`** (unit-tested) -- `analyzeSubjectTo`/`analyzeSellerFinance`/
+  `analyzeHybrid` each produce monthly debt service, cash flow (reusing the existing
+  `calculateCashFlow` engine), cash-to-close, cash-on-cash return (`null`, not a fake number,
+  when cash-to-close is near zero), equity captured at close, and explicit risk flags --
+  due-on-sale risk is always shown for any structure that keeps an existing loan in place, and
+  balloon risk only when a balloon is actually set. Never claims a structure is "safe" or
+  estimates the odds a lender calls a loan due.
+- **Exit-strategy suggestion** -- deterministic, transparent-reasons pick of the cash-flow-
+  positive scenario needing the least cash to close among what's been entered; explicitly says
+  "no modeled structure cash flows yet" rather than forcing a recommendation.
+- **New "Creative Finance" tab** on the Deal Workspace, between Financing and Decision.
+
+## Legal document assembly (new -- extends the Smart Contract Builder)
+
+Extends the vertical slice past the checklist into an actual (placeholder, attorney-gated)
+document-generation step, per the module's own stated build order:
+
+- **Template Registry** (`src/lib/legal/templateRegistry.ts`) -- a static catalog of document
+  *shapes*, not legal content. Every body is a generic, jurisdiction-agnostic worksheet framed
+  explicitly as "PLACEHOLDER -- NOT A CONTRACT -- DO NOT SIGN," listing the deal facts an
+  attorney needs rather than anything phrased as usable contract language. Distressed-property
+  documents are permanently excluded from the registry -- that fact pattern always needs
+  attorney-drafted documents from scratch.
+- **Document assembly** (`src/lib/legal/documentAssembly.ts`, unit-tested) -- builds a field
+  snapshot from the deal and legal intake (reusing the same verified-vs-seller-reported
+  financing precedence as the attorney summary), then substitutes it into a template; an unknown
+  token renders as an explicit `[MISSING: x]` marker rather than a blank or a guess.
+  Templates and their first version are created lazily on first use
+  (`src/lib/legal/ensureTemplateVersion.ts`), so the static registry stays the single source of
+  truth for content.
+- **API** -- `GET/POST /api/legal-cases/[id]/documents` (list with assembled body / generate
+  drafts for every required doc that doesn't have one yet -- refuses outright with a 409 while
+  the case is on the red gate) and `PATCH /api/generated-documents/[id]` (status transitions,
+  blocked once EXECUTED or VOID via the existing `canModifyGeneratedDocument`).
+- **UI** -- a "Draft documents" panel on the Legal tab: generate, expand to read the assembled
+  placeholder text, and move a document through DRAFT -> UNDER REVIEW -> APPROVED -> EXECUTED
+  (or VOID), with generation itself disabled and clearly explained the moment a case is gated.
+
+Live-tested against the production build: generated all 5 applicable draft worksheets for the
+demo deal, confirmed the assembled body renders deal facts correctly with the full placeholder
+disclaimer, then triggered the red gate on that same case and confirmed the "Generate draft
+documents" button disappears with an explanation, while previously generated drafts remain
+visible untouched.
+
 ## Not yet built (next in sequence)
 
-- **18. Creative-finance analyzer** -- seller-financing / subject-to modeling, risk warnings,
-  exit-strategy engine. `creativeFinance` JSON field and DB model exist; no UI yet.
 - **20. Actual-vs-estimate learning loop** -- Scope-of-Work / contractor bidding, and
   post-acquisition tracking of estimate vs. actual (rehab, rent, ARV, timeline).
 - ARV comparable-sales *matching logic* is manual today (user picks STRONG/MODERATE/WEAK/
   EXCLUDED and types a reason) rather than computed from listing data -- no licensed
   MLS/property-data API is wired in, per the spec's instruction not to fake one.
-- **Legal module phases beyond the vertical slice** -- deliberately not started until the slice
-  above is proven out: Template Registry, Document Assembly, Attorney Review Versioning UI,
-  Subject-To / Seller-Finance / Hybrid document packages, Servicing Workflow, Local Jurisdiction
-  Modules. The data model (`DocumentTemplate`/`TemplateVersion`/`GeneratedDocument`) and the
-  versioning/immutability engines already exist and are unit-tested; there is just no template
-  content or document-assembly UI wired to them yet.
+- **Legal module phases beyond document assembly** -- Attorney Review Versioning UI (there is
+  no screen yet to edit a template's clauses or record a real attorney's approval -- the
+  versioning engine exists and is tested), Subject-To / Seller-Finance / Hybrid document
+  *packages* (bundling several documents together with package-level status), Servicing
+  Workflow, Local Jurisdiction Modules beyond Rochester/Buffalo/Syracuse name-matching.
 - Section 8 payment-standard tables are a placeholder (not yet loaded/versioned per ZIP).
 - Lender contact center (email integration, sent/response tracking) is not built --
   `email`/`phone`/`website` fields exist on the Lender record but there's no send flow.
