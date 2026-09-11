@@ -8,6 +8,7 @@ import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { useMode } from "@/lib/mode-context";
 import { term } from "@/lib/terminology";
+import { TabIntro } from "./TabIntro";
 
 const STATUS_OPTIONS: ConfidenceStatus[] = [
   "VERIFIED", "HIGH_CONFIDENCE", "MEDIUM_CONFIDENCE", "LOW_CONFIDENCE", "ASSUMPTION", "NEEDS_INSPECTION", "NEEDS_VERIFICATION",
@@ -72,6 +73,11 @@ export function ValueArvTab({
 
   return (
     <div className="flex flex-col gap-6">
+      <TabIntro
+        blurb="ARV is the single number the rest of this deal hinges on -- it drives your acquisition price, your refinance proceeds, and how much equity you actually create. Back it with real comparable sales, not a guess."
+        learnHref="/learn/brrrr-explained"
+        learnLabel="Learn how the acquisition-price engine uses this"
+      />
       <Card>
         <CardTitle>
           {term("arv", mode)}

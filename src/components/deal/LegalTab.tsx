@@ -8,6 +8,7 @@ import type {
 } from "@/lib/types/legal";
 import { LEGAL_TRANSACTION_TYPE_LABELS } from "@/lib/types/legal";
 import { GeneratedDocumentsPanel } from "./GeneratedDocumentsPanel";
+import { TabIntro } from "./TabIntro";
 
 interface LegalCaseState {
   id: string;
@@ -103,13 +104,11 @@ export function LegalTab({ dealId }: { dealId: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <Card>
-        <p className="text-xs text-text-secondary">
-          AI explains. Data supports. Math decides. Human approves. Attorney-approved language
-          stays locked. Nothing on this tab is legal advice, and no document here is guaranteed
-          enforceable -- every template requires attorney review before use.
-        </p>
-      </Card>
+      <TabIntro
+        blurb="AI explains. Data supports. Math decides. Human approves. Attorney-approved language stays locked. Nothing on this tab is legal advice, and no document here is guaranteed enforceable -- every template requires attorney review before use."
+        learnHref="/learn/why-the-legal-tab-exists"
+        learnLabel="Learn why this tab exists and what it can't do"
+      />
 
       {triggerResult.triggered && (
         <Card className="border-danger bg-danger/10">

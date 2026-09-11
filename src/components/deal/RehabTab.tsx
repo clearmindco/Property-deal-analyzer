@@ -6,6 +6,7 @@ import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { InfoTooltip } from "@/components/ui/Tooltip";
 import { useMode } from "@/lib/mode-context";
+import { TabIntro } from "./TabIntro";
 
 const CATEGORIES: RehabCategory[] = [
   "roof", "gutters", "foundation", "basement_water", "sewer", "electrical_panel", "rewiring",
@@ -55,6 +56,11 @@ export function RehabTab({
 
   return (
     <div className="flex flex-col gap-6">
+      <TabIntro
+        blurb="A low/expected/high range per repair, plus a contingency -- because the first number a contractor gives you is rarely the number you actually pay. This total feeds directly into the acquisition-price engine on the Decision tab."
+        learnHref="/learn/brrrr-explained"
+        learnLabel="Learn how rehab feeds the acquisition price"
+      />
       {mode === "simple" && (
         <p className="rounded-card bg-soft-blue px-4 py-3 text-sm text-navy">
           Add each repair you expect, with a low/expected/high cost range. Anything hidden

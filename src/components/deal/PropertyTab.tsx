@@ -6,6 +6,7 @@ import { ConfidenceBadge } from "@/components/ui/ConfidenceBadge";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { VoiceInput } from "@/components/ui/VoiceInput";
+import { TabIntro } from "./TabIntro";
 import { useMode } from "@/lib/mode-context";
 import { getAiProvider } from "@/lib/ai/provider";
 import type { StructuredVoiceField } from "@/lib/ai/types";
@@ -84,6 +85,11 @@ export function PropertyTab({
 
   return (
     <div className="flex flex-col gap-6">
+      <TabIntro
+        blurb="Every fact here gets its own confidence badge -- VERIFIED, ASSUMPTION, NEEDS INSPECTION -- because a guess about the roof shouldn't count the same as a contractor's answer. These badges feed the deal-killer flags and the AI summary automatically."
+        learnHref="/learn/reading-confidence-badges"
+        learnLabel="Learn how confidence badges work"
+      />
       <Card>
         <CardTitle>Seller / contractor notes (voice or text)</CardTitle>
         <p className="mb-2 mt-1 text-xs text-text-secondary">

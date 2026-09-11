@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { InfoTooltip } from "@/components/ui/Tooltip";
 import { useMode } from "@/lib/mode-context";
 import { term, tooltipFor, TERMS } from "@/lib/terminology";
+import { TabIntro } from "./TabIntro";
 
 type TermKey = keyof typeof TERMS;
 
@@ -101,6 +102,11 @@ export function FinancingTab({
 
   return (
     <div className="flex flex-col gap-6">
+      <TabIntro
+        blurb="This is where the hard-money loan, the refinance, and your operating expenses turn into an actual cash-flow number -- and where the Decision tab's acquisition-price engine works backward from your own requirements, never a flat rule of thumb."
+        learnHref="/learn/brrrr-explained"
+        learnLabel="Learn how the acquisition price is calculated"
+      />
       {mode === "simple" && (
         <p className="rounded-card bg-soft-blue px-4 py-3 text-sm text-navy">
           There are two loans in a BRRRR deal: a <strong>short-term loan</strong> to buy and fix

@@ -247,6 +247,31 @@ disclaimer, then triggered the red gate on that same case and confirmed the "Gen
 documents" button disappears with an explanation, while previously generated drafts remain
 visible untouched.
 
+## Education Center + "why this matters" tab framing (new)
+
+Addresses a direct piece of feedback: even with the guided walkthrough, the individual Deal
+tabs still read as generic input forms with no explanation of why any of it mattered. Two
+changes, both content-only (no schema or engine changes):
+
+- **`/learn` Education Center** (`src/lib/learn/lessons.ts`) -- 8 short lessons grouped into How
+  This App Works, Finding & Qualifying Sellers, Understanding the Numbers, Creative Finance,
+  Legal & Contracts, and a Rochester Market Playbook. Every lesson documents how *this specific
+  app's* own logic works (confidence badges, the acquisition-price engine, the 10 core
+  questions, subject-to/seller-finance/hybrid risk, why the legal red gate exists) -- nothing
+  here states a market statistic, price, or legal conclusion as fact. The Rochester lesson is
+  explicit that the app does not invent local numbers, and instead points to where to get real
+  ones (county property/tax records, the city's CO/rental-registration office, local investor
+  Facebook groups, a local title company or attorney).
+- **`TabIntro` component** -- a one-paragraph "why this matters" card, with a link into the
+  matching lesson, added to the top of every previously-bare form tab (Property, Value/ARV,
+  Rehab, Rent, Financing, Creative Finance, Legal). Getting Started also links into the
+  Education Center.
+
+Rochester (Monroe County), Buffalo (Erie County), and Syracuse (Onondaga County) remain the
+supported jurisdictions for now -- a deliberate initial niche for local Facebook-group
+promotion, not a ceiling; the jurisdiction engine already falls back generically for any other
+NY address, so opening up additional markets later is a content decision, not an engineering one.
+
 ## Not yet built (next in sequence)
 
 - **20. Actual-vs-estimate learning loop** -- Scope-of-Work / contractor bidding, and

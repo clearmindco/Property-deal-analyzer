@@ -1,7 +1,9 @@
+import Link from "next/link";
 import { requireUserId } from "@/lib/session";
 import { fetchOnboardingInputs } from "@/lib/onboarding/fetchOnboardingInputs";
 import { computeOnboardingProgress } from "@/lib/onboarding/computeOnboardingProgress";
 import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
+import { Card } from "@/components/ui/Card";
 
 export default async function GettingStartedPage() {
   const userId = await requireUserId();
@@ -18,6 +20,17 @@ export default async function GettingStartedPage() {
           (if you&apos;re using creative financing) get it in front of an attorney before you sign anything.
         </p>
       </div>
+
+      <Link href="/learn">
+        <Card className="border-primary-blue/30 bg-soft-blue/30 transition-shadow hover:shadow-md">
+          <p className="text-sm font-semibold text-navy">This checklist tells you what to do. The Education Center explains why.</p>
+          <p className="mt-1 text-sm text-text-secondary">
+            Short lessons on how the numbers work, how to talk to sellers, and what the legal tab actually does --
+            including a Rochester-specific playbook. Open the Education Center &rarr;
+          </p>
+        </Card>
+      </Link>
+
       <OnboardingChecklist progress={progress} />
     </div>
   );

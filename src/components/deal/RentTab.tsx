@@ -5,6 +5,7 @@ import { ConfidenceBadge } from "@/components/ui/ConfidenceBadge";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { useMode } from "@/lib/mode-context";
+import { TabIntro } from "./TabIntro";
 
 const STATUS_OPTIONS: ConfidenceStatus[] = [
   "VERIFIED", "HIGH_CONFIDENCE", "MEDIUM_CONFIDENCE", "LOW_CONFIDENCE", "ASSUMPTION", "NEEDS_INSPECTION", "NEEDS_VERIFICATION",
@@ -48,6 +49,11 @@ export function RentTab({
 
   return (
     <div className="flex flex-col gap-6">
+      <TabIntro
+        blurb="Market rent sets your cash flow and DSCR -- and it's the same rent number the Creative Finance tab uses to compare every financing structure on equal footing. Conservative/likely/upper mirrors ARV for the same reason: a single guess hides how sensitive the deal actually is."
+        learnHref="/learn/brrrr-explained"
+        learnLabel="Learn how rent feeds the numbers"
+      />
       <Card>
         <CardTitle>Market rent</CardTitle>
         <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-3">

@@ -5,6 +5,7 @@ import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import type { CreativeFinance, OperatingExpenseAssumptions } from "@/lib/types/deal";
 import { analyzeHybrid, analyzeSellerFinance, analyzeSubjectTo, recommendExitStrategy, type CreativeFinanceScenarioResult } from "@/lib/calc/creativeFinance";
+import { TabIntro } from "./TabIntro";
 
 function money(n: number | null | undefined): string {
   if (n === null || n === undefined) return "--";
@@ -93,13 +94,11 @@ export function CreativeFinanceTab({
 
   return (
     <div className="flex flex-col gap-4">
-      <Card>
-        <p className="text-sm text-text-secondary">
-          Models the numbers for a seller-finance, subject-to, or hybrid structure side by side with your Cash/BRRRR
-          plan from the Financing tab. This is math only -- it never tells you whether a structure is legal in your
-          state or safe to sign. Use the Legal tab before presenting any of this to a seller.
-        </p>
-      </Card>
+      <TabIntro
+        blurb="Models the numbers for a seller-finance, subject-to, or hybrid structure side by side with your Cash/BRRRR plan from the Financing tab. This is math only -- it never tells you whether a structure is legal in your state or safe to sign. Use the Legal tab before presenting any of this to a seller."
+        learnHref="/learn/creative-finance-basics"
+        learnLabel="Learn what each structure actually means"
+      />
 
       <Card>
         <CardTitle>Subject-to: existing loan</CardTitle>
