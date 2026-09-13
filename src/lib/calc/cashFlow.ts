@@ -41,10 +41,20 @@ export function calculateCashFlow(
 }
 
 export function breakEvenRent(mortgagePI: number, expenses: OperatingExpenseAssumptions): number {
-  // Solve rentMonthly - mortgagePI - (fixed + pctOfRent*rentMonthly) = 0
+  return requiredRentForTargetCashFlow(mortgagePI, expenses, 0);
+}
+
+/** Generalizes breakEvenRent to any target monthly cash flow, not just zero -- the Deal Rescue
+ * Engine's "Option E: verified rent would need to be ≥ $X" lever. */
+export function requiredRentForTargetCashFlow(
+  mortgagePI: number,
+  expenses: OperatingExpenseAssumptions,
+  targetCashFlow: number
+): number {
+  // Solve rentMonthly - mortgagePI - (fixed + pctOfRent*rentMonthly) = targetCashFlow
   const pctOfRent = expenses.vacancyPct + expenses.maintenancePct + expenses.capexPct + expenses.managementPct;
   const fixedMonthly = expenses.taxesAnnual / 12 + expenses.insuranceAnnual / 12 + (expenses.hoaMonthly ?? 0) + (expenses.otherMonthly ?? 0);
   const denominator = 1 - pctOfRent;
   if (denominator <= 0) return Infinity;
-  return (mortgagePI + fixedMonthly) / denominator;
+  return (mortgagePI + fixedMonthly + targetCashFlow) / denominator;
 }

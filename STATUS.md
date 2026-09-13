@@ -307,6 +307,52 @@ Live-tested against the production build: created a contact with both Wholesaler
 roles, set a deal's source to Wholesaler with a $54,000 contract price and $1,500 assignment
 fee, confirmed the $55,500 total displays live and survives a save + page reload.
 
+## Master Deal Structuring Engine -- test every viable path (new)
+
+Acquisition OS Phase 2. The core rule: a lead source and a deal structure are two different
+things. A wholesaler-sourced deal is run through cash and BRRRR exactly like a direct-seller
+deal, and a direct-seller deal never auto-defaults to seller financing just because that's the
+"expected" structure for that source.
+
+- **Authority gate** (`src/lib/strategy/strategyAvailability.ts`, unit-tested) -- the single
+  most emphasized rule in the spec: a wholesaler's assignment never grants authority to offer
+  seller financing, subject-to, a wrap, hybrid, or a lease option. Those five "seller
+  cooperation" structures are available by default for a direct-seller or realtor source, but
+  for a wholesaler source require BOTH confirmed contract control AND confirmed seller approval
+  -- unknown is never treated as yes. Assignment/double-close/renegotiation are gated on their
+  own separate facts (assignment permitted, actually sourced from a wholesaler contract).
+- **Two new numeric analyzers** -- `src/lib/calc/dscrRental.ts` (a permanent-loan rental
+  purchase, the strategy BRRRR doesn't cover) and `src/lib/calc/wrapFinancing.ts` (a single
+  blended wrap note the buyer pays the seller, who keeps paying the underlying loan --
+  deliberately modeled separately from the existing Hybrid structure's side-by-side payments,
+  since the payment mechanics and reliance risk are genuinely different). Both unit-tested.
+- **Deal Rescue Engine** (`src/lib/strategy/dealRescue.ts`, unit-tested against the spec's own
+  $91/mo-vs-$300/mo worked example) -- every failing strategy reverse-solves for the specific
+  number that would fix it (max debt service and the price that implies, required rent, max
+  down payment for a cash ceiling, the BRRRR ceiling, a wholesale spread) rather than just
+  reporting FAIL. Every option is included only when the caller supplies enough to compute it
+  honestly -- an all-cash purchase never gets a fake "lower price" lever since price doesn't
+  touch its zero debt service.
+- **Strategy orchestrator + Best Deal Router** (`src/lib/strategy/strategyFeasibility.ts`,
+  `bestDealRouter.ts`, unit-tested) -- runs all 11 strategies from the spec (Cash, BRRRR, DSCR
+  Rental, Seller Finance, Subject-To, Hybrid, Wrap, Lease Option, Wholesale/Assignment, Double
+  Close, Renegotiated Wholesale) through the gate and then the numbers, reusing the existing
+  acquisition-price and creative-finance engines rather than duplicating them. Ranks by cash
+  flow per dollar of cash required and names a recommended structure, a backup, an alternative
+  exit, a walk-away point, and exactly what information is still needed -- never a hidden score.
+  Wholesale/double-close/lease-option/renegotiated-wholesale are marked available-but-NEEDS_INFO
+  (their numeric modeling is deliberately deferred, stated explicitly rather than silently
+  skipped).
+- **New "Strategy Router" tab** on the Deal Workspace, plus three new authority fields
+  (assignment permitted, wholesaler contract control, seller approval for terms) on the
+  existing Source & Pipeline card.
+
+Live-tested against the production build: with no source set, every seller-cooperation
+structure correctly shows unavailable; switching the source to Wholesaler updates the reason
+text to the exact wholesaler-authority language; confirming both wholesaler contract control
+and seller approval flips those same five structures to available in real time; the Best Deal
+Router correctly recommended BRRRR over Cash Purchase on the seeded demo deal's numbers.
+
 ## Not yet built (next in sequence)
 
 - **Acquisition OS phases 2+** (per the Master Build Prompt's own priority order) -- lead

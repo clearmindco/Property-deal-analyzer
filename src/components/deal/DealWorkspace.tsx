@@ -12,6 +12,8 @@ import {
 import { calculateAcquisitionPrice } from "@/lib/calc/acquisitionPrice";
 import { runStressTest } from "@/lib/calc/stressTest";
 import { evaluateDecision } from "@/lib/calc/decision";
+import { resolveTotalAcquisitionPrice } from "@/lib/calc/acquisitionTotal";
+import type { ContractControlFacts } from "@/lib/types/strategy";
 import type { DealSummaryContext } from "@/lib/ai/types";
 import { OverviewTab } from "./OverviewTab";
 import { PropertyTab } from "./PropertyTab";
@@ -22,8 +24,9 @@ import { FinancingTab } from "./FinancingTab";
 import { DecisionTab } from "./DecisionTab";
 import { LegalTab } from "./LegalTab";
 import { CreativeFinanceTab } from "./CreativeFinanceTab";
+import { StrategyRouterTab } from "./StrategyRouterTab";
 
-const TABS = ["Overview", "Property", "Value / ARV", "Rehab", "Rent", "Financing", "Creative Finance", "Decision", "Legal"] as const;
+const TABS = ["Overview", "Property", "Value / ARV", "Rehab", "Rent", "Financing", "Creative Finance", "Strategy Router", "Decision", "Legal"] as const;
 type Tab = (typeof TABS)[number];
 
 interface SerializedDeal {
@@ -35,6 +38,8 @@ interface SerializedDeal {
   creativeFinance: CreativeFinance | null;
   sourceContactId: string | null; sourceType: string | null;
   contractPrice: number | null; assignmentFee: number | null;
+  assignmentPermitted: boolean | null; sellerApprovalForTerms: string | null;
+  wholesalerControlsContract: string | null;
   nextAction: string | null; nextActionOwner: string | null;
   nextContactMethod: string | null; followUpCadence: string | null;
 }
@@ -65,6 +70,9 @@ export function DealWorkspace({ deal }: { deal: SerializedDeal }) {
     sourceType: deal.sourceType ?? "",
     contractPrice: deal.contractPrice?.toString() ?? "",
     assignmentFee: deal.assignmentFee?.toString() ?? "",
+    assignmentPermitted: deal.assignmentPermitted === null ? "" : String(deal.assignmentPermitted),
+    sellerApprovalForTerms: deal.sellerApprovalForTerms ?? "",
+    wholesalerControlsContract: deal.wholesalerControlsContract ?? "",
     nextAction: deal.nextAction ?? "",
     nextActionOwner: deal.nextActionOwner ?? "",
     nextContactMethod: deal.nextContactMethod ?? "",
@@ -180,6 +188,9 @@ export function DealWorkspace({ deal }: { deal: SerializedDeal }) {
               sourceType: source.sourceType || null,
               contractPrice: source.contractPrice ? Number(source.contractPrice) : null,
               assignmentFee: source.assignmentFee ? Number(source.assignmentFee) : null,
+              assignmentPermitted: source.assignmentPermitted === "" ? null : source.assignmentPermitted === "true",
+              sellerApprovalForTerms: source.sellerApprovalForTerms || null,
+              wholesalerControlsContract: source.wholesalerControlsContract || null,
               nextAction: source.nextAction || null,
               nextActionOwner: source.nextActionOwner || null,
               nextContactMethod: source.nextContactMethod || null,
@@ -230,6 +241,32 @@ export function DealWorkspace({ deal }: { deal: SerializedDeal }) {
           expenses={financing.expenses}
           cashBrrrMonthlyCashFlow={acquisition?.projectionAtAsking?.postRefiCashFlowMonthly ?? null}
           cashBrrrCashToClose={acquisition?.projectionAtAsking?.cashRemainingInProperty ?? null}
+        />
+      )}
+
+      {tab === "Strategy Router" && (
+        <StrategyRouterTab
+          arv={arv}
+          rehabTotal={rehabTotal}
+          rentMonthly={rentMonthly}
+          expenses={financing.expenses}
+          askingPrice={askingPriceNum}
+          hardMoneyTerms={financing.hardMoney}
+          refinanceTerms={financing.refinance}
+          holdPeriodMonths={financing.holdPeriodMonths}
+          requirements={requirements}
+          creativeFinance={creativeFinance}
+          contractControl={{
+            sourceType: (source.sourceType || null) as ContractControlFacts["sourceType"],
+            assignmentPermitted: source.assignmentPermitted === "" ? null : source.assignmentPermitted === "true",
+            sellerApprovalForTerms: (source.sellerApprovalForTerms || null) as ContractControlFacts["sellerApprovalForTerms"],
+            wholesalerControlsContract: (source.wholesalerControlsContract || null) as ContractControlFacts["wholesalerControlsContract"],
+          }}
+          currentTotalAcquisitionPrice={
+            source.sourceType === "WHOLESALER"
+              ? resolveTotalAcquisitionPrice(source.contractPrice ? Number(source.contractPrice) : null, source.assignmentFee ? Number(source.assignmentFee) : null).totalAcquisitionPrice
+              : askingPriceNum
+          }
         />
       )}
 

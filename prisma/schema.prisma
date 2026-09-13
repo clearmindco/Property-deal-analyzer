@@ -85,6 +85,16 @@ model Deal {
   contractPrice Float?
   assignmentFee Float?
 
+  // Deal-structuring authority gate (Master Build Prompt "Master Deal Structuring Engine"):
+  // a wholesaler's assignment never grants authority to offer seller financing, subject-to,
+  // a wrap, or a lease option. These three facts are what src/lib/strategy/
+  // strategyAvailability.ts checks before ever showing a seller-cooperation structure as
+  // available. All tri-state ("YES" | "NO" | null-meaning-unknown) -- unknown is never
+  // silently treated as yes.
+  assignmentPermitted        Boolean?
+  sellerApprovalForTerms     String?
+  wholesalerControlsContract String?
+
   // Follow-Up Command Center (spec section 14). Additive alongside the existing `stage`
   // field -- widening stage's own valid-value set is documented above; these three answer
   // "whose turn is it" separately from "what stage is the deal in."

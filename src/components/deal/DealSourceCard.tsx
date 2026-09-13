@@ -17,6 +17,9 @@ export interface SourceState {
   sourceType: string;
   contractPrice: string;
   assignmentFee: string;
+  assignmentPermitted: string;
+  sellerApprovalForTerms: string;
+  wholesalerControlsContract: string;
   nextAction: string;
   nextActionOwner: string;
   nextContactMethod: string;
@@ -47,6 +50,7 @@ export function DealSourceCard({
   const inputClass = "mt-1 w-full rounded-card border border-silver/60 bg-canvas px-3 py-2 text-sm";
   const labelClass = "text-sm font-medium text-text-secondary";
   const isWholesaler = source.sourceType === "WHOLESALER";
+  const needsSellerApproval = source.sourceType !== "" && source.sourceType !== "DIRECT_SELLER" && source.sourceType !== "REALTOR";
   const total = resolveTotalAcquisitionPrice(
     source.contractPrice ? Number(source.contractPrice) : null,
     source.assignmentFee ? Number(source.assignmentFee) : null
@@ -113,6 +117,55 @@ export function DealSourceCard({
             Always contract price + assignment fee, shown separately -- the fee is never folded into a single
             blended number.
           </p>
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className={labelClass}>
+              Assignment permitted by the contract?
+              <select
+                value={source.assignmentPermitted}
+                onChange={(e) => onChange({ ...source, assignmentPermitted: e.target.value })}
+                className={inputClass}
+              >
+                <option value="">Unknown</option>
+                <option value="true">Yes</option>
+                <option value="false">No</option>
+              </select>
+            </label>
+            <label className={labelClass}>
+              Does the wholesaler control a valid contract?
+              <select
+                value={source.wholesalerControlsContract}
+                onChange={(e) => onChange({ ...source, wholesalerControlsContract: e.target.value })}
+                className={inputClass}
+              >
+                <option value="">Unknown</option>
+                <option value="YES">Yes</option>
+                <option value="NO">No</option>
+              </select>
+            </label>
+          </div>
+        </div>
+      )}
+
+      {needsSellerApproval && (
+        <div className="mt-3 rounded-card border border-warning/40 bg-warning/5 p-3">
+          <p className="text-xs font-semibold uppercase text-warning">Seller-cooperation authority</p>
+          <p className="mt-1 text-xs text-text-secondary">
+            Seller financing, subject-to, a wrap, hybrid, or lease option can only be offered once the underlying
+            seller has actually approved a restructure -- a wholesaler or other intermediary can never grant this
+            on the seller&apos;s behalf.
+          </p>
+          <label className={`${labelClass} mt-2 block max-w-xs`}>
+            Has the underlying seller approved creative terms?
+            <select
+              value={source.sellerApprovalForTerms}
+              onChange={(e) => onChange({ ...source, sellerApprovalForTerms: e.target.value })}
+              className={inputClass}
+            >
+              <option value="">Unknown</option>
+              <option value="YES">Yes</option>
+              <option value="NO">No</option>
+            </select>
+          </label>
         </div>
       )}
 

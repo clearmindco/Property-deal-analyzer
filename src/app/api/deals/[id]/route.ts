@@ -18,6 +18,7 @@ const PATCHABLE_FIELDS = [
   "property", "seller", "valueArv", "rehab", "rent", "financing",
   "creativeFinance", "assumptions", "dealKillers",
   "sourceContactId", "sourceType", "contractPrice", "assignmentFee",
+  "assignmentPermitted", "sellerApprovalForTerms", "wholesalerControlsContract",
   "nextAction", "nextActionOwner", "nextContactMethod", "followUpCadence",
 ] as const;
 
