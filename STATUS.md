@@ -272,8 +272,52 @@ supported jurisdictions for now -- a deliberate initial niche for local Facebook
 promotion, not a ceiling; the jurisdiction engine already falls back generically for any other
 NY address, so opening up additional markets later is a content decision, not an engineering one.
 
+## Acquisition OS Phase 1 -- unified Contacts + Deal source/pipeline (new)
+
+First phase of the "Master Build Prompt" real-estate acquisition OS: turning this from a deal
+calculator into a system that remembers relationships and routes deals by source type. Built as
+an extension of the existing data model, not a replacement -- every existing screen (Lead Gen,
+the 10 Magic Questions, the Legal module) keeps working exactly as before.
+
+- **Unified Contact model** (`src/lib/types/contact.ts`) -- one person, multiple roles (Direct
+  Seller, Realtor/Agent, Wholesaler/Deal Source, Investor, Referral, Lender, Contractor,
+  Property Manager, Attorney, Unknown) stored as a role array, never a single bucket. The
+  contractor-only Team page is now the **Contacts** CRM (`/contacts`): add a contact with any
+  combination of roles, and only show the contractor trade/rating fields when the Contractor
+  role is selected. A contact detail page (`/contacts/[id]`) shows every property linked to
+  that person via `Deal.sourceContactId` -- the exact "one wholesaler, several properties,
+  never duplicated" case from the spec's own example.
+- **Deal extended into the Property/Opportunity record** (`prisma/schema.prisma`) -- rather than
+  building a second, competing `Property` table, `Deal` (which already carries address,
+  condition, ARV, rehab, rent, financing, documents) gained `sourceContactId`/`sourceType`,
+  wholesaler `contractPrice`/`assignmentFee`, and follow-up ownership fields
+  (`nextAction`/`nextActionOwner`/`nextContactMethod`/`followUpCadence`), plus a widened
+  `stage` pipeline (`DEAL_STAGES` in `src/lib/types/deal.ts`) covering the full acquisition
+  lifecycle from New Lead through Closed. All additive and nullable -- every deal created
+  before this change keeps working unchanged.
+- **Wholesaler math** (`src/lib/calc/acquisitionTotal.ts`, unit-tested) --
+  `resolveTotalAcquisitionPrice(contractPrice, assignmentFee)` always returns the sum, shown as
+  three separate numbers on the Deal Overview tab's new "Source & pipeline" card -- the
+  assignment fee is never folded into or hidden behind a single blended price.
+- **Deal Overview "Source & pipeline" card** -- deal stage, source contact (pulled from the
+  Contacts CRM), source type, the wholesaler fields when relevant, and the four follow-up
+  fields, all on the tab that already anchors the rest of the deal record.
+
+Live-tested against the production build: created a contact with both Wholesaler and Investor
+roles, set a deal's source to Wholesaler with a $54,000 contract price and $1,500 assignment
+fee, confirmed the $55,500 total displays live and survives a save + page reload.
+
 ## Not yet built (next in sequence)
 
+- **Acquisition OS phases 2+** (per the Master Build Prompt's own priority order) -- lead
+  routing that actually branches the UI by contact role (Direct Seller vs. Realtor vs.
+  Wholesaler intake screens), the source-claim/verified/underwritten/actual quad-field display
+  for ARV and rent (today's confidence-badge system covers the same intent with one tagged
+  value per field rather than four parallel numbers), the Deal Source Scorecard, the unified
+  Follow-Up Command Center dashboard view ("who needs a response today" across every deal), the
+  Property Comparison Engine, and the expanded Documents/Due-Diligence checklist beyond the
+  Legal module's existing one. The data model above (source linkage, wholesaler fields, the
+  long stage pipeline, follow-up ownership) is the foundation all of these build on.
 - **20. Actual-vs-estimate learning loop** -- Scope-of-Work / contractor bidding, and
   post-acquisition tracking of estimate vs. actual (rehab, rent, ARV, timeline).
 - ARV comparable-sales *matching logic* is manual today (user picks STRONG/MODERATE/WEAK/

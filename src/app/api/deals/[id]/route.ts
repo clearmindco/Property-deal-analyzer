@@ -17,6 +17,8 @@ const PATCHABLE_FIELDS = [
   "bedrooms", "bathrooms", "sqft", "stage",
   "property", "seller", "valueArv", "rehab", "rent", "financing",
   "creativeFinance", "assumptions", "dealKillers",
+  "sourceContactId", "sourceType", "contractPrice", "assignmentFee",
+  "nextAction", "nextActionOwner", "nextContactMethod", "followUpCadence",
 ] as const;
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {

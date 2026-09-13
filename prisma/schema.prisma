@@ -33,8 +33,10 @@ model User {
 }
 
 // SQLite has no native enum support in Prisma, so DealStage/LeadStatus are plain strings
-// constrained by zod at the API boundary. Valid DealStage values: ANALYZING | OFFER |
-// UNDER_CONTRACT | CLOSED | DEAD.
+// constrained by zod at the API boundary. `stage` widened for the Acquisition OS pipeline
+// (Master Build Prompt section 18) -- see src/lib/types/deal.ts DEAL_STAGES for the full,
+// ordered list. The original five values (ANALYZING | OFFER | UNDER_CONTRACT | CLOSED | DEAD)
+// remain valid and are what every existing seeded/created deal already uses.
 model Deal {
   id     String @id @default(cuid())
   userId String
@@ -68,6 +70,32 @@ model Deal {
   creativeFinance String? // seller-finance / subject-to analysis
   assumptions     String? // investor requirements used by acquisition price engine
   dealKillers     String? // array of flags {key, status, note}
+
+  // ACQUISITION OS: source-of-deal linkage and wholesaler math (Master Build Prompt
+  // sections 1-2, 8). sourceContactId is nullable and onDelete: SetNull -- deleting a
+  // contact must never delete the property record it sourced.
+  sourceContactId String?
+  sourceContact   Contact? @relation(fields: [sourceContactId], references: [id], onDelete: SetNull)
+  // Valid values: DIRECT_SELLER | REALTOR | WHOLESALER | REFERRAL | INVESTOR | UNKNOWN.
+  sourceType      String?
+
+  // Wholesaler-specific (spec section 8): total acquisition before other transaction costs
+  // is always contractPrice + assignmentFee, computed and displayed explicitly -- never
+  // folded into a single opaque number. See src/lib/calc/acquisitionTotal.ts.
+  contractPrice Float?
+  assignmentFee Float?
+
+  // Follow-Up Command Center (spec section 14). Additive alongside the existing `stage`
+  // field -- widening stage's own valid-value set is documented above; these three answer
+  // "whose turn is it" separately from "what stage is the deal in."
+  nextAction        String?
+  // Valid values: INVESTOR | SELLER | AGENT | WHOLESALER | LENDER | CONTRACTOR | ATTORNEY |
+  // SUPPORT | WAITING.
+  nextActionOwner   String?
+  // Valid values: CALL | TEXT | FACEBOOK_DM | EMAIL | SUPPORT_CALL | WAIT.
+  nextContactMethod String?
+  // Valid values: TODAY | ONE_TWO_DAYS | ONE_WEEK | ONE_TWO_WEEKS | THIRTY_DAYS | CUSTOM | NONE.
+  followUpCadence   String?
 
   notes     Note[]
   documents Document[]
@@ -234,20 +262,43 @@ model Post {
   updatedAt DateTime @updatedAt
 }
 
+// ACQUISITION OS: unified CRM contact (Master Build Prompt section 1). One person can hold
+// multiple roles (a wholesaler who also personally owns properties) -- never create a
+// duplicate Contact for the same person because they sent another deal or wear another hat.
+// `trade`/`category` predate this and are contractor-specific rating fields, kept optional
+// and only meaningful when roles includes CONTRACTOR -- the existing Team page still reads
+// and writes them exactly as before.
 model Contact {
   id     String @id @default(cuid())
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  name     String
-  company  String?
-  trade    String // general_contractor | plumbing | electrical | ...
-  phone    String?
-  email    String?
-  category String  @default("BACKUP") // PREFERRED | BACKUP | DO_NOT_USE
-  notes    String?
+  name    String
+  company String?
+  phone   String?
+  email   String?
+  notes   String?
+
+  // Contractor-specific (pre-existing, now optional since not every Contact is a contractor).
+  trade    String? // general_contractor | plumbing | electrical | ...
+  category String? // PREFERRED | BACKUP | DO_NOT_USE
+
+  // JSON array of ContactRole (src/lib/types/contact.ts) -- SELLER | REALTOR | WHOLESALER |
+  // INVESTOR | REFERRAL | LENDER | CONTRACTOR | PROPERTY_MANAGER | ATTORNEY | UNKNOWN.
+  roles String @default("[]")
+
+  market                 String?
+  leadSource             String?
+  relationshipStatus     String? // e.g. ACTIVE | COLD | DO_NOT_CONTACT
+  preferredContactMethod String? // CALL | TEXT | FACEBOOK_DM | EMAIL
+  lastContactAt          DateTime?
+  nextFollowUpAt         DateTime?
+
+  // Properties/opportunities this contact sourced, owns, or is otherwise tied to.
+  deals Deal[]
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ============================================================

@@ -33,6 +33,10 @@ interface SerializedDeal {
   property: PropertyDetails | null; valueArv: ValueArv | null; rehab: Rehab | null; rent: Rent | null;
   financing: Financing | null; assumptions: InvestorRequirements | null; dealKillers: DealKillerFlag[] | null;
   creativeFinance: CreativeFinance | null;
+  sourceContactId: string | null; sourceType: string | null;
+  contractPrice: number | null; assignmentFee: number | null;
+  nextAction: string | null; nextActionOwner: string | null;
+  nextContactMethod: string | null; followUpCadence: string | null;
 }
 
 export function DealWorkspace({ deal }: { deal: SerializedDeal }) {
@@ -55,6 +59,17 @@ export function DealWorkspace({ deal }: { deal: SerializedDeal }) {
   const [requirements, setRequirements] = useState<InvestorRequirements>(deal.assumptions ?? defaultRequirements());
   const [dealKillers, setDealKillers] = useState<DealKillerFlag[]>(deal.dealKillers ?? defaultDealKillers());
   const [creativeFinance, setCreativeFinance] = useState<CreativeFinance>(deal.creativeFinance ?? defaultCreativeFinance());
+  const [source, setSource] = useState({
+    stage: deal.stage,
+    sourceContactId: deal.sourceContactId ?? "",
+    sourceType: deal.sourceType ?? "",
+    contractPrice: deal.contractPrice?.toString() ?? "",
+    assignmentFee: deal.assignmentFee?.toString() ?? "",
+    nextAction: deal.nextAction ?? "",
+    nextActionOwner: deal.nextActionOwner ?? "",
+    nextContactMethod: deal.nextContactMethod ?? "",
+    followUpCadence: deal.followUpCadence ?? "",
+  });
 
   async function patch(fields: Record<string, unknown>) {
     setSaving(true);
@@ -154,6 +169,21 @@ export function DealWorkspace({ deal }: { deal: SerializedDeal }) {
               units: header.units ? Number(header.units) : 1,
               bedrooms: header.bedrooms ? Number(header.bedrooms) : null,
               bathrooms: header.bathrooms ? Number(header.bathrooms) : null,
+            })
+          }
+          source={source}
+          onSourceChange={setSource}
+          onSourceSave={() =>
+            patch({
+              stage: source.stage,
+              sourceContactId: source.sourceContactId || null,
+              sourceType: source.sourceType || null,
+              contractPrice: source.contractPrice ? Number(source.contractPrice) : null,
+              assignmentFee: source.assignmentFee ? Number(source.assignmentFee) : null,
+              nextAction: source.nextAction || null,
+              nextActionOwner: source.nextActionOwner || null,
+              nextContactMethod: source.nextContactMethod || null,
+              followUpCadence: source.followUpCadence || null,
             })
           }
         />

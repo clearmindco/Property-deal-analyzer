@@ -215,3 +215,83 @@ export interface CreativeFinance {
   sellerFinance?: SellerFinanceTerms;
   hybrid?: HybridTerms;
 }
+
+// Acquisition OS: deal source, wholesaler math, and follow-up ownership (Master Build Prompt
+// sections 1-2, 8, 14, 18). These sit alongside the existing calc-engine types above rather
+// than replacing anything -- a deal with none of these set behaves exactly as it did before.
+
+export type SourceType = "DIRECT_SELLER" | "REALTOR" | "WHOLESALER" | "REFERRAL" | "INVESTOR" | "UNKNOWN";
+
+export const SOURCE_TYPE_LABELS: Record<SourceType, string> = {
+  DIRECT_SELLER: "Direct Seller",
+  REALTOR: "Realtor / Agent",
+  WHOLESALER: "Wholesaler / Deal Source",
+  REFERRAL: "Referral / Network",
+  INVESTOR: "Investor",
+  UNKNOWN: "Unknown",
+};
+
+/** The full acquisition pipeline (spec section 18). The five original stage values
+ * (ANALYZING/OFFER/UNDER_CONTRACT/CLOSED/DEAD) remain valid -- every deal created before this
+ * pipeline existed still has a meaningful stage. */
+export type DealStage =
+  | "NEW_LEAD" | "CONTACTED" | "SCRIPT_IN_PROGRESS" | "WAITING_FOR_RESPONSE"
+  | "INFORMATION_NEEDED" | "READY_TO_ANALYZE" | "ANALYZING" | "TERMS_OPPORTUNITY"
+  | "READY_FOR_SELLER_CALL" | "OFFER_PREPARATION" | "OFFER" | "NEGOTIATING"
+  | "CONTRACT_SENT" | "UNDER_CONTRACT" | "DUE_DILIGENCE" | "FINANCING"
+  | "READY_TO_CLOSE" | "CLOSED" | "FOLLOW_UP" | "DEAD";
+
+export const DEAL_STAGE_LABELS: Record<DealStage, string> = {
+  NEW_LEAD: "New Lead",
+  CONTACTED: "Contacted",
+  SCRIPT_IN_PROGRESS: "Script in Progress",
+  WAITING_FOR_RESPONSE: "Waiting for Response",
+  INFORMATION_NEEDED: "Information Needed",
+  READY_TO_ANALYZE: "Ready to Analyze",
+  ANALYZING: "Analyzing",
+  TERMS_OPPORTUNITY: "Terms Opportunity",
+  READY_FOR_SELLER_CALL: "Ready for Seller/Support Call",
+  OFFER_PREPARATION: "Offer Preparation",
+  OFFER: "Offer Made",
+  NEGOTIATING: "Negotiating",
+  CONTRACT_SENT: "Contract Sent",
+  UNDER_CONTRACT: "Under Contract",
+  DUE_DILIGENCE: "Due Diligence",
+  FINANCING: "Financing",
+  READY_TO_CLOSE: "Ready to Close",
+  CLOSED: "Closed",
+  FOLLOW_UP: "Follow-Up",
+  DEAD: "Pass",
+};
+
+export const DEAL_STAGES: DealStage[] = [
+  "NEW_LEAD", "CONTACTED", "SCRIPT_IN_PROGRESS", "WAITING_FOR_RESPONSE", "INFORMATION_NEEDED",
+  "READY_TO_ANALYZE", "ANALYZING", "TERMS_OPPORTUNITY", "READY_FOR_SELLER_CALL",
+  "OFFER_PREPARATION", "OFFER", "NEGOTIATING", "CONTRACT_SENT", "UNDER_CONTRACT",
+  "DUE_DILIGENCE", "FINANCING", "READY_TO_CLOSE", "CLOSED", "FOLLOW_UP", "DEAD",
+];
+
+/** Who owes the next response (spec section 14) -- every active deal should have one. */
+export type NextActionOwner =
+  | "INVESTOR" | "SELLER" | "AGENT" | "WHOLESALER" | "LENDER" | "CONTRACTOR" | "ATTORNEY"
+  | "SUPPORT" | "WAITING";
+
+export const NEXT_ACTION_OWNER_LABELS: Record<NextActionOwner, string> = {
+  INVESTOR: "You (the investor)", SELLER: "Seller", AGENT: "Agent", WHOLESALER: "Wholesaler",
+  LENDER: "Lender", CONTRACTOR: "Contractor", ATTORNEY: "Attorney", SUPPORT: "Support/Closing Team",
+  WAITING: "Waiting (no one owes a response)",
+};
+
+export type NextContactMethod = "CALL" | "TEXT" | "FACEBOOK_DM" | "EMAIL" | "SUPPORT_CALL" | "WAIT";
+
+export const NEXT_CONTACT_METHOD_LABELS: Record<NextContactMethod, string> = {
+  CALL: "Call", TEXT: "Text", FACEBOOK_DM: "Facebook DM", EMAIL: "Email",
+  SUPPORT_CALL: "Support Call", WAIT: "Wait",
+};
+
+export type FollowUpCadence = "TODAY" | "ONE_TWO_DAYS" | "ONE_WEEK" | "ONE_TWO_WEEKS" | "THIRTY_DAYS" | "CUSTOM" | "NONE";
+
+export const FOLLOW_UP_CADENCE_LABELS: Record<FollowUpCadence, string> = {
+  TODAY: "Today", ONE_TWO_DAYS: "1-2 days", ONE_WEEK: "1 week", ONE_TWO_WEEKS: "1-2 weeks",
+  THIRTY_DAYS: "30 days", CUSTOM: "Custom", NONE: "None",
+};

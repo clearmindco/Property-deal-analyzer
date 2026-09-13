@@ -11,7 +11,7 @@ const NAV_ITEMS = [
   { href: "/leadgen", label: "Lead Gen" },
   { href: "/leads", label: "Leads" },
   { href: "/lenders", label: "Lenders" },
-  { href: "/team", label: "Team" },
+  { href: "/contacts", label: "Contacts" },
   { href: "/mentor", label: "AI Mentor" },
 ];
 

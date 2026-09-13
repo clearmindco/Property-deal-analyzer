@@ -6,6 +6,7 @@ import type { AiDealSummaryOutput, DealSummaryContext } from "@/lib/ai/types";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { useMode } from "@/lib/mode-context";
+import { DealSourceCard, type SourceState } from "./DealSourceCard";
 
 interface HeaderState {
   address: string; city: string; state: string; zip: string;
@@ -18,12 +19,18 @@ export function OverviewTab({
   onSave,
   saving,
   summaryContext,
+  source,
+  onSourceChange,
+  onSourceSave,
 }: {
   header: HeaderState;
   onHeaderChange: (next: HeaderState) => void;
   onSave: () => void;
   saving: boolean;
   summaryContext: DealSummaryContext;
+  source: SourceState;
+  onSourceChange: (next: SourceState) => void;
+  onSourceSave: () => void;
 }) {
   const { mode } = useMode();
   const [summary, setSummary] = useState<AiDealSummaryOutput | null>(null);
@@ -91,6 +98,8 @@ export function OverviewTab({
           <Button onClick={onSave} disabled={saving}>{saving ? "Saving..." : "Save deal basics"}</Button>
         </div>
       </Card>
+
+      <DealSourceCard source={source} onChange={onSourceChange} onSave={onSourceSave} saving={saving} />
 
       <Card>
         <div className="flex items-center justify-between">
