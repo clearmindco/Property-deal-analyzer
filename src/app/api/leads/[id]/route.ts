@@ -8,6 +8,8 @@ const PATCHABLE_FIELDS = [
   "marketId", "groupId", "sourcePostId", "dealId",
   "qualification", "priorityLevel", "priorityReasons", "skippedQuestions", "verificationChecklist",
   "lastContactAt", "nextFollowUpAt",
+  // AR Residential Operating System: Chief-of-Staff follow-up parity with Deal.
+  "nextAction", "nextActionOwner", "nextContactMethod", "followUpCadence", "leadType",
 ] as const;
 
 const DATE_FIELDS = new Set(["lastContactAt", "nextFollowUpAt"]);

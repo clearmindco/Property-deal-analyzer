@@ -13,6 +13,8 @@ const NAV_ITEMS = [
   { href: "/lenders", label: "Lenders" },
   { href: "/contacts", label: "Contacts" },
   { href: "/mentor", label: "AI Mentor" },
+  { href: "/course-rules", label: "Course Rules" },
+  { href: "/settings/company", label: "Company Settings" },
 ];
 
 export function Sidebar() {

@@ -23,6 +23,8 @@ export const GENERATED_DOCUMENT_JSON_FIELDS = ["fieldsSnapshot"] as const;
 
 export const CONTACT_JSON_FIELDS = ["roles"] as const;
 
+export const COURSE_RULE_JSON_FIELDS = ["details"] as const;
+
 // Returns Record<string, unknown> rather than T: the whole point is that the JSON fields
 // change shape (object -> string), so preserving the input type here would be a lie. Callers
 // pass the result straight to Prisma, whose generated input types expect the string shape.

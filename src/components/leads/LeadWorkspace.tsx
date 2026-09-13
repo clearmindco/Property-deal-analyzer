@@ -16,6 +16,10 @@ import {
   CORE_QUESTIONS, QUALIFICATION_FIELDS, VERIFICATION_CHECKLIST_ITEMS,
   type QualificationAnswer, type QualificationKey, type VerificationChecklistItem,
 } from "@/lib/types/leadgen";
+import {
+  NEXT_ACTION_OWNER_LABELS, NEXT_CONTACT_METHOD_LABELS, FOLLOW_UP_CADENCE_LABELS,
+} from "@/lib/types/deal";
+import { LEAD_TYPE_LABELS, LEAD_TYPES } from "@/lib/types/lead";
 import { NextQuestionCard } from "./NextQuestionCard";
 import { ObjectionAssistant } from "./ObjectionAssistant";
 import { StrategyRouterCard } from "./StrategyRouterCard";
@@ -46,6 +50,11 @@ interface LeadRecord {
   verificationChecklist: VerificationChecklistItem[] | null;
   lastContactAt: string | null;
   nextFollowUpAt: string | null;
+  nextAction: string | null;
+  nextActionOwner: string | null;
+  nextContactMethod: string | null;
+  followUpCadence: string | null;
+  leadType: string | null;
 }
 
 function labelFor(key: QualificationKey): string {
@@ -341,12 +350,43 @@ export function LeadWorkspace({
 
       <Card>
         <CardTitle>Follow-up</CardTitle>
+        <p className="mt-1 text-xs text-text-secondary">
+          These fields are what the Company Command Center dashboard reads to build your daily plan --
+          a lead with no next action or owner shows up under Admin as a CRM hygiene gap.
+        </p>
         <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <label className="text-sm text-text-secondary">Last contact
             <input type="date" defaultValue={lead.lastContactAt?.slice(0, 10) ?? ""} onBlur={(e) => patch({ lastContactAt: e.target.value || null })} className={inputClass} />
           </label>
           <label className="text-sm text-text-secondary">Next follow-up
             <input type="date" defaultValue={lead.nextFollowUpAt?.slice(0, 10) ?? ""} onBlur={(e) => patch({ nextFollowUpAt: e.target.value || null })} className={inputClass} />
+          </label>
+          <label className="text-sm text-text-secondary">Lead type
+            <select defaultValue={lead.leadType ?? ""} onChange={(e) => patch({ leadType: e.target.value || null })} className={inputClass}>
+              <option value="">Not set</option>
+              {LEAD_TYPES.map((t) => <option key={t} value={t}>{LEAD_TYPE_LABELS[t]}</option>)}
+            </select>
+          </label>
+          <label className="text-sm text-text-secondary">Who owes the next response?
+            <select defaultValue={lead.nextActionOwner ?? ""} onChange={(e) => patch({ nextActionOwner: e.target.value || null })} className={inputClass}>
+              <option value="">Not set</option>
+              {Object.entries(NEXT_ACTION_OWNER_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </label>
+          <label className="text-sm text-text-secondary">Next contact method
+            <select defaultValue={lead.nextContactMethod ?? ""} onChange={(e) => patch({ nextContactMethod: e.target.value || null })} className={inputClass}>
+              <option value="">Not set</option>
+              {Object.entries(NEXT_CONTACT_METHOD_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </label>
+          <label className="text-sm text-text-secondary">Follow-up cadence
+            <select defaultValue={lead.followUpCadence ?? ""} onChange={(e) => patch({ followUpCadence: e.target.value || null })} className={inputClass}>
+              <option value="">Not set</option>
+              {Object.entries(FOLLOW_UP_CADENCE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </label>
+          <label className="col-span-2 text-sm text-text-secondary">Next action
+            <input placeholder="e.g. Call about repair estimate" defaultValue={lead.nextAction ?? ""} onBlur={(e) => patch({ nextAction: e.target.value || null })} className={inputClass} />
           </label>
         </div>
         <div className="mt-3 flex justify-end">

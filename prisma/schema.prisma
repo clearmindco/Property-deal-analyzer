@@ -30,6 +30,9 @@ model User {
   posts              Post[]
   legalCases         LegalCase[]
   generatedDocuments GeneratedDocument[]
+  courseRules        CourseRule[]
+  companySettings    CompanySettings?
+  companyObjectives  CompanyObjective[]
 }
 
 // SQLite has no native enum support in Prisma, so DealStage/LeadStatus are plain strings
@@ -199,6 +202,21 @@ model Lead {
   lastContactAt  DateTime?
   nextFollowUpAt DateTime?
 
+  // AR Residential Operating System (Company Command Center): the same "whose turn is it"
+  // fields already added to Deal (see above), mirrored here so a Lead can appear in the
+  // Chief of Staff's daily plan exactly like a Deal does. Reuses Deal's existing
+  // NextActionOwner/NextContactMethod/FollowUpCadence value sets from src/lib/types/deal.ts
+  // -- do not redefine a second enum for the same concept.
+  nextAction        String?
+  nextActionOwner   String?
+  nextContactMethod String?
+  followUpCadence   String?
+  // Valid values: DIRECT_SELLER | REALTOR | WHOLESALER | REFERRAL | UNKNOWN (src/lib/types/lead.ts
+  // LeadType). Lets Acquisitions routing skip homeowner-motivation questions for a wholesaler
+  // who does not own the property -- separate from Deal/Contact's SourceType/ContactRole
+  // since Lead remains its own model.
+  leadType String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -238,6 +256,7 @@ model Group {
   promotionAllowed   Boolean?
   realEstateAllowed  Boolean?
   dateJoined         DateTime?
+  approvalDate       DateTime? // some groups require admin approval before you can post at all
   lastPostDate       DateTime?
   lastEngagementDate DateTime?
   priority           String    @default("TEST")
@@ -489,6 +508,66 @@ model ComplianceEvent {
 
   eventType String // e.g. "GATE_TRIGGERED" | "INTAKE_UPDATED" | "DOCUMENT_EXECUTED"
   detail    String
+
+  createdAt DateTime @default(now())
+}
+
+// ============================================================
+// AR RESIDENTIAL OPERATING SYSTEM -- Company Command Center (Phase 1).
+//
+// Non-negotiable: this layer aggregates and prioritizes data that already exists elsewhere
+// (Deal, Lead, Group, Lender, LegalCase). It must never duplicate or reimplement the Deal
+// Analyzer / Master Deal Structuring Engine / Strategy Router math -- those stay exactly as
+// they are. See src/lib/ops/ for the pure functions that read this data.
+// ============================================================
+
+// Stores conflicting CFP course-source facts side by side instead of silently reconciling
+// them (e.g. two documented versions of the Facebook "5/5/30" cadence). Multiple rows can
+// share the same `key` -- that IS the conflict, preserved on purpose. Nothing here is ever
+// treated as a numeric threshold the app enforces until a row is marked AUTHORITATIVE by a
+// human with actual CFP clarification.
+model CourseRule {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  key         String // e.g. "FACEBOOK_5_5_30" | "FACEBOOK_BLUE_AD_WORDING"
+  sourceLabel String // e.g. "CFP Facebook Tracker / Onboarding" | "Earlier Course Roadmap"
+  ruleText    String // exact quoted wording, verbatim -- never paraphrased or "cleaned up"
+  details     String? // JSON string[] of supporting bullet points, verbatim
+  // NEEDS_CLARIFICATION (default -- multiple sources conflict) | AUTHORITATIVE | SUPERSEDED.
+  status String @default("NEEDS_CLARIFICATION")
+
+  createdAt DateTime @default(now())
+}
+
+// Singleton-per-user company financial facts. This is the ONLY source the CFO capital-position
+// engine (src/lib/ops/cfoCapitalPosition.ts) reads for cash/reserve checks -- the app never
+// estimates or invents these. Null/unset means NEEDS_INFO, not "assume it's fine."
+model CompanySettings {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  cashOnHand       Float?
+  reserveMinimum   Float?
+  committedCapital Float?
+
+  updatedAt DateTime @updatedAt
+}
+
+// Weekly/monthly CEO-style objective lines (spec: "PRIMARY OBJECTIVE THIS WEEK" /
+// "DO NOT PRIORITIZE"). Manually entered in Phase 1 -- the CEO engine reads these, it does
+// not yet generate them.
+model CompanyObjective {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  period      String // WEEK | MONTH
+  periodLabel String // e.g. "2026-W38" or "2026-09"
+  type        String // PRIMARY | SECONDARY | DO_NOT_PRIORITIZE
+  text        String
 
   createdAt DateTime @default(now())
 }
